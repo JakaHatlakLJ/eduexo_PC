@@ -57,13 +57,11 @@ while running:
 
     p1 = pygame.Vector2(0, offset + pas/2)
     p2 = pygame.Vector2(width, offset + pas/2)
-    pygame.draw.line(screen, "black", p1, p2, width = pas)
     if loc < 0.9 * pas + offset:
         pygame.draw.line(screen, "green", p1, p2, width = pas)
 
     p1 = pygame.Vector2(0, height - offset - pas/2)
     p2 = pygame.Vector2(width, height - offset - pas/2)
-    pygame.draw.line(screen, "black", p1, p2, width = pas)
     if loc > height - 0.9 * pas - offset:
         pygame.draw.line(screen, "green", p1, p2, width = pas)
     
