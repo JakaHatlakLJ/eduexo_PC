@@ -1,0 +1,16 @@
+{
+    "experiment": {
+            "Number_of_trials": 20,
+            "state_wait_time_range": [1, 3],
+            "screen_width": 1280,
+            "screen_height": 820,
+            "maximum_arm_position_deg": 180,
+            "minimum_arm_position_deg": 55,
+            "total_trials": 0
+        },
+    "participant": {
+        "age": 22,
+        "id": 1,
+        "name": "Jaka"
+    }
+}
