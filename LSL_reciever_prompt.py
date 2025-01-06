@@ -1,6 +1,16 @@
 # Example file showing a circle moving on screen
 import pygame
 from pylsl import StreamInlet, resolve_stream
+import random
+import numpy as np
+# from state_machine import StateMachine
+
+
+
+trial_No = 20
+time_delay = [1, 3]
+# state_machine = StateMachine(trial_No, time_delay)
+
 
 width = 1280
 height = 820
@@ -8,10 +18,6 @@ offset = 100
 pas = 80
 maxP = 180
 minP = 55
-
-
-green = (0, 255, 0)
-blue = (0, 0, 128)
 
 
 # Stream resolve
