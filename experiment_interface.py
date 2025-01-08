@@ -16,7 +16,7 @@ class Interface:
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.clock = pygame.time.Clock()
-        self.running = True
+        self.continue_experiment = True
 
         self.font = pygame.font.Font('freesansbold.ttf', 48) # Select font and size
         self.font2 = pygame.font.Font('freesansbold.ttf', 100)
@@ -40,9 +40,6 @@ class Interface:
 
     def update(self):
         self.state_dict["Current_Position"] = self.sample[0]
-
-        self.state_dict["enter_pressed"] = pygame.key.get_pressed()[pygame.K_RETURN]
-        self.state_dict["space_pressed"] = pygame.key.get_pressed()[pygame.K_SPACE]
         
         if self.loc < self.height/2 + 5 and self.loc > self.height/2 - 5:
             self.state_dict["in_the_middle"] = True
@@ -64,7 +61,16 @@ class Interface:
         else:
             self.state_dict["on_the_move"] = True
 
-        print(self.state_dict)
+        if "current_state" not in self.state_dict:
+            self.state_dict["current_state"] = None
+        if "current_trial" not in self.state_dict:
+            self.state_dict["current_trial"] = None
+        if "enter_pressed" not in self.state_dict:
+            self.state_dict["enter_pressed"] = False
+        if "space_pressed" not in self.state_dict:
+            self.state_dict["space_pressed"] = False
+        print(f'Current state: {self.state_dict["current_state"]}, Current trial: {self.state_dict["current_trial"]}, is_UP: {self.state_dict["is_UP"]}, is_DOWN: {self.state_dict["is_DOWN"]}, in_the_middle: {self.state_dict["in_the_middle"]}, on_the_move: {self.state_dict["on_the_move"]}, enter_pressed: {self.state_dict["enter_pressed"]}, space_pressed: {self.state_dict["space_pressed"]}, Current_Position: {self.state_dict["Current_Position"]}')
+    
 
     def lsl_stream():
         streams = resolve_stream('type', 'EXO')
@@ -73,13 +79,18 @@ class Interface:
         return inlet
 
     def dot_position(self):
+        self.inlet.flush()
         self.sample, _ = self.inlet.pull_sample()
         loc = self.sample[0]
         self.loc = (loc / (self.maxP - self.minP) - self.minP / (self.maxP - self.minP)) * (self.height-2*self.offset) + self.offset 
         return pygame.Vector2(self.width/2,  self.loc)
     
     def background(self):
-        self.screen.fill("black")
+        if "background_color" in self.state_dict:
+            self.screen.fill(self.state_dict["background_color"])
+        else:
+            self.screen.fill("black")
+            
         keys = pygame.key.get_pressed()
         self.in_band = False
 
@@ -140,23 +151,27 @@ class Interface:
         pygame.draw.circle(self.screen, "white", dot_pos, 10)
 
     def run(self):
-        while self.running:
-            dot_pos = self.dot_position()
-            self.background()
-            self.dynamic_elements(dot_pos)
+        dot_pos = self.dot_position()
+        self.background()
+        self.dynamic_elements(dot_pos)
 
-            pygame.display.update()
-            self.clock.tick(60)
+        pygame.display.update()
+        self.clock.tick(60)
 
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.running = False
-            
-            self.update()                        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.continue_experiment = False
         
-        pygame.quit()
+        self.update()
+
+        return self.continue_experiment                        
+        
+        
 
 if __name__ == "__main__":
     inlet = Interface.lsl_stream()
     interface = Interface(inlet=inlet)
-    interface.run()
+    while interface.continue_experiment: 
+        interface.run()
+
+    pygame.quit()

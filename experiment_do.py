@@ -1,4 +1,3 @@
-import argparse
 import json
 import traceback
 from datetime import datetime
@@ -19,6 +18,7 @@ def initialize_state_dict(state_dict, experiment_config):
 
     state_dict["Trials_No"] = experiment_config["experiment"]["number_of_trials"]
     state_dict["state_wait_time_range"] = experiment_config["experiment"]["state_wait_time_range"]
+    state_dict["timeout"] = experiment_config["experiment"]["trial_timeout"]
     state_dict["width"] = experiment_config["experiment"]["screen_width"]
     state_dict["height"] = experiment_config["experiment"]["screen_height"]
     state_dict["maxP"] = experiment_config["experiment"]["maximum_arm_position_deg"]
@@ -31,6 +31,10 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["eduexo_online"] = False
     state_dict["enter_pressed"] = False
     state_dict["space_pressed"] = False
+    state_dict["previous_enter_state"] = False
+    state_dict["previous_space_state"] = False
+
+    state_dict["background_color"] = "black"
 
     state_dict["needs_update"] = False
     # state_dict["cbos_set"] = False
@@ -43,26 +47,25 @@ if __name__ == "__main__":
     inlet = Interface.lsl_stream()
 
     continue_experiment = True
+    experiment_over = False
     state_dict = None
 
     try:
-        while continue_experiment:
+        while continue_experiment and experiment_over is False:
             if state_dict is None or state_dict["needs_update"]:
                 state_dict = initialize_state_dict(state_dict, experiment_config)
                 if inlet is not None:
                     state_dict["eduexo_online"] = True
-                interface = Interface(inlet=inlet, width=state_dict["width"], height=state_dict["height"], maxP=state_dict["maxP"], minP=state_dict["minP"])
+                interface = Interface(inlet=inlet, state_dict=state_dict, width=state_dict["width"], height=state_dict["height"], maxP=state_dict["maxP"], minP=state_dict["minP"])
                 state_machine = StateMachine(trial_No=state_dict["Trials_No"], time_delay=state_dict["state_wait_time_range"])
 
             time_start = time()
-            pygame.event.get()
+            pygame.event.clear()
 
-            continue_experiment, state_dict = state_machine.maybe_update_state(state_dict)
+            experiment_over, state_dict = state_machine.maybe_update_state(state_dict)
 
-            Interface.run(interface)
-            Interface.update(state_dict)
-
-            print(state_dict)
+            continue_experiment = Interface.run(interface)
+            # print(state_dict)
     
     
     except Exception as e:

@@ -1,7 +1,8 @@
 {
     "experiment": {
-        "number_of_trials": 4,
-        "state_wait_time_range": [4, 6],
+        "number_of_trials": 2,
+        "state_wait_time_range": [1, 3],
+        "trial_timeout": 5,
         "screen_width": 1280,
         "screen_height": 820,
         "maximum_arm_position_deg": 180,
