@@ -9,6 +9,7 @@ class Interface:
         self.pas = pas
         self.maxP = maxP
         self.minP = minP
+
         self.state_dict = state_dict
 
         self.inlet = inlet
@@ -31,10 +32,7 @@ class Interface:
         self.textRect_DOWN = self.DOWN_text.get_rect(center = (self.width/2, self.height - self.offset - self.pas/2))
         self.textRect_UP_sign = self.UP_sign.get_rect(center = (self.width/2, self.height/2))
         self.textRect_DOWN_sign = self.DOWN_sign.get_rect(center = (self.width/2, self.height/2))
-
-        self.Return_text = self.font.render('Return to center', True, "white")
-        self.textRect_Return = self.Return_text.get_rect(center = (self.width/2, self.height/2))
-        
+    
         self.current_trial = self.font3.render('Current Trial', True, "white")
         self.textRect_current_trial = self.current_trial.get_rect(center = (0.1*self.width, 0.45*self.height))
 
@@ -60,18 +58,8 @@ class Interface:
             self.state_dict["on_the_move"] = False
         else:
             self.state_dict["on_the_move"] = True
-
-        if "current_state" not in self.state_dict:
-            self.state_dict["current_state"] = None
-        if "current_trial" not in self.state_dict:
-            self.state_dict["current_trial"] = None
-        if "enter_pressed" not in self.state_dict:
-            self.state_dict["enter_pressed"] = False
-        if "space_pressed" not in self.state_dict:
-            self.state_dict["space_pressed"] = False
-        print(f'Current state: {self.state_dict["current_state"]}, Current trial: {self.state_dict["current_trial"]}, is_UP: {self.state_dict["is_UP"]}, is_DOWN: {self.state_dict["is_DOWN"]}, in_the_middle: {self.state_dict["in_the_middle"]}, on_the_move: {self.state_dict["on_the_move"]}, enter_pressed: {self.state_dict["enter_pressed"]}, space_pressed: {self.state_dict["space_pressed"]}, Current_Position: {self.state_dict["Current_Position"]}')
     
-
+    @staticmethod
     def lsl_stream():
         streams = resolve_stream('type', 'EXO')
         inlet = StreamInlet(streams[0])
@@ -80,80 +68,109 @@ class Interface:
 
     def dot_position(self):
         self.inlet.flush()
-        self.sample, _ = self.inlet.pull_sample()
+        self.sample, _ = self.inlet.pull_sample(timeout=1)
+        
+        if self.sample is None:
+            self.sample = [(self.maxP - self.minP)/2 + self.minP]
+            self.state_dict["stream_online"] = False
+        else:
+            self.state_dict["stream_online"] = True
+
         loc = self.sample[0]
         self.loc = (loc / (self.maxP - self.minP) - self.minP / (self.maxP - self.minP)) * (self.height-2*self.offset) + self.offset 
         return pygame.Vector2(self.width/2,  self.loc)
     
-    def background(self):
+    def draw(self, dot_pos):
         if "background_color" in self.state_dict:
             self.screen.fill(self.state_dict["background_color"])
         else:
             self.screen.fill("black")
+
+        if "current_state" not in self.state_dict:
+            self.state_dict["current_state"] = None
             
         keys = pygame.key.get_pressed()
         self.in_band = False
-
-        p1 = pygame.Vector2(0, self.offset + self.pas/2)
-        p2 = pygame.Vector2(self.width, self.offset + self.pas/2)
-        if self.loc < 0.9 * self.pas + self.offset:
-            pygame.draw.line(self.screen, "green", p1, p2, width = self.pas)
-            self.screen.blit(self.Return_text, self.textRect_Return)
-            self.in_band = True        
-        elif keys[pygame.K_UP] or \
-            "current_trial" in self.state_dict and self.state_dict["current_trial"] == "UP": 
-            pygame.draw.line(self.screen, "orange", p1, p2, width = self.pas)
-
-        p1 = pygame.Vector2(0, self.height - self.offset - self.pas/2)
-        p2 = pygame.Vector2(self.width, self.height - self.offset - self.pas/2)
-        if self.loc > self.height - 0.9 * self.pas - self.offset:
-            pygame.draw.line(self.screen, "green", p1, p2, width = self.pas)
-            self.screen.blit(self.Return_text, self.textRect_Return)
+        if self.loc < 0.9 * self.pas + self.offset or self.loc > self.height - 0.9 * self.pas - self.offset:
             self.in_band = True
-        elif keys[pygame.K_DOWN] or \
-            "current_trial" in self.state_dict and self.state_dict["current_trial"] == "DOWN":
-            pygame.draw.line(self.screen, "orange", p1, p2, width = self.pas)
-   
-        p1 = pygame.Vector2(0, self.offset)
-        p2 = pygame.Vector2(self.width, self.offset)
-        pygame.draw.line(self.screen, "white", p1, p2)
 
-        p1 = pygame.Vector2(0, self.offset + self.pas)
-        p2 = pygame.Vector2(self.width, self.offset + self.pas)
-        pygame.draw.line(self.screen, "white", p1, p2)
 
-        p1 = pygame.Vector2(0, self.height-self.offset)
-        p2 = pygame.Vector2(self.width, self.height-self.offset)
-        pygame.draw.line(self.screen, "white", p1, p2)
+        if self.state_dict["current_state"] == "INITIAL_SCREEN":
+            self.screen.fill(self.state_dict["background_color"])
+            main_text = self.font.render(self.state_dict["main_text"], True, "white")
+            textRect_main = main_text.get_rect(center = (self.width/2, self.height/2))
+            self.screen.blit(main_text, textRect_main)
 
-        p1 = pygame.Vector2(0, self.height - self.offset - self.pas)
-        p2 = pygame.Vector2(self.width, self.height - self.offset - self.pas)
-        pygame.draw.line(self.screen, "white", p1, p2)      
+        elif self.state_dict["current_state"] == "PAUSE":
+            self.screen.fill(self.state_dict["background_color"])
+            main_text = self.font.render(self.state_dict["main_text"], True, "white")
+            textRect_main = main_text.get_rect(center = (self.width/2, self.height/2))
+            self.screen.blit(main_text, textRect_main)
 
-        self.screen.blit(self.UP_text, self.textRect_UP)
-        self.screen.blit(self.DOWN_text, self.textRect_DOWN)
-        self.screen.blit(self.current_trial, self.textRect_current_trial)
+        elif self.state_dict["current_state"] == "EXIT":
+            self.screen.fill(self.state_dict["background_color"])
+            main_text = self.font.render(self.state_dict["main_text"], True, "white")
+            sub_text = self.font3.render(self.state_dict["sub_text"], True, "white")
+            textRect_main = main_text.get_rect(center = (self.width/2, self.height/2))
+            textRect_sub = sub_text.get_rect(center = (self.width/2 - 10, 0.6*self.height))
+            self.screen.blit(main_text, textRect_main)
+            self.screen.blit(sub_text, textRect_sub)
 
-    def dynamic_elements(self, dot_pos):
-        keys = pygame.key.get_pressed()
-        if not self.in_band:
-            if keys[pygame.K_UP] or \
-                "current_trial" in self.state_dict and self.state_dict["current_trial"] == "UP":
-                self.screen.blit(self.UP_sign, self.textRect_UP_sign)
-            elif keys[pygame.K_DOWN] or \
-                "current_trial" in self.state_dict and self.state_dict["current_trial"] == "DOWN":
-                self.screen.blit(self.DOWN_sign, self.textRect_DOWN_sign)
-            else:
-                pygame.draw.circle(self.screen, "white", (self.width/2, self.height/2), 17, width= 2)
-                if self.loc < self.height/2 + 5 and self.loc > self.height/2 - 5:
-                    pygame.draw.circle(self.screen, "green", (self.width/2, self.height/2), 16) 
+        else:
+            p1 = pygame.Vector2(0, self.offset + self.pas/2)
+            p2 = pygame.Vector2(self.width, self.offset + self.pas/2)
+            if self.loc < 0.9 * self.pas + self.offset:
+                pygame.draw.line(self.screen, "green", p1, p2, width = self.pas)      
+            elif (keys[pygame.K_UP] or self.state_dict["current_trial"] == "UP") and self.state_dict["trial_in_progress"] and not self.in_band: 
+                pygame.draw.line(self.screen, "orange", p1, p2, width = self.pas)
+
+            p1 = pygame.Vector2(0, self.height - self.offset - self.pas/2)
+            p2 = pygame.Vector2(self.width, self.height - self.offset - self.pas/2)
+            if self.loc > self.height - 0.9 * self.pas - self.offset:
+                pygame.draw.line(self.screen, "green", p1, p2, width = self.pas)
+            elif (keys[pygame.K_DOWN] or self.state_dict["current_trial"] == "DOWN") and self.state_dict["trial_in_progress"] and not self.in_band:
+                pygame.draw.line(self.screen, "orange", p1, p2, width = self.pas)
+    
+            p1 = pygame.Vector2(0, self.offset)
+            p2 = pygame.Vector2(self.width, self.offset)
+            pygame.draw.line(self.screen, "white", p1, p2)
+
+            p1 = pygame.Vector2(0, self.offset + self.pas)
+            p2 = pygame.Vector2(self.width, self.offset + self.pas)
+            pygame.draw.line(self.screen, "white", p1, p2)
+
+            p1 = pygame.Vector2(0, self.height-self.offset)
+            p2 = pygame.Vector2(self.width, self.height-self.offset)
+            pygame.draw.line(self.screen, "white", p1, p2)
+
+            p1 = pygame.Vector2(0, self.height - self.offset - self.pas)
+            p2 = pygame.Vector2(self.width, self.height - self.offset - self.pas)
+            pygame.draw.line(self.screen, "white", p1, p2)      
+
+            self.screen.blit(self.UP_text, self.textRect_UP)
+            self.screen.blit(self.DOWN_text, self.textRect_DOWN)
+            self.screen.blit(self.current_trial, self.textRect_current_trial)
+
+            if not self.in_band:
+                if (keys[pygame.K_UP] or self.state_dict["current_trial"] == "UP") and self.state_dict["trial_in_progress"]:
+                    self.screen.blit(self.UP_sign, self.textRect_UP_sign)
+                elif (keys[pygame.K_DOWN] or self.state_dict["current_trial"] == "DOWN") and self.state_dict["trial_in_progress"]:
+                    self.screen.blit(self.DOWN_sign, self.textRect_DOWN_sign)
+            
+            if self.state_dict["current_state"] in {"GO_TO_MIDDLE_CIRCLE", "IN_MIDDLE_CIRCLE"}:
+                Instructions_text = self.font.render(self.state_dict["main_text"], True, "white")
+                textRect_Instructions = Instructions_text.get_rect(center = (self.width/2, self.height*0.4))
+                self.screen.blit(Instructions_text, textRect_Instructions)  
         
-        pygame.draw.circle(self.screen, "white", dot_pos, 10)
+                pygame.draw.circle(self.screen, "white", (self.width/2, self.height/2), 17, width= 2)              
+                if self.loc < self.height/2 + 5 and self.loc > self.height/2 - 5:
+                    pygame.draw.circle(self.screen, "green", (self.width/2, self.height/2), 16)
+            
+            pygame.draw.circle(self.screen, "white", dot_pos, 10)
 
     def run(self):
         dot_pos = self.dot_position()
-        self.background()
-        self.dynamic_elements(dot_pos)
+        self.draw(dot_pos)
 
         pygame.display.update()
         self.clock.tick(60)
@@ -171,7 +188,14 @@ class Interface:
 if __name__ == "__main__":
     inlet = Interface.lsl_stream()
     interface = Interface(inlet=inlet)
+    interface.state_dict["current_trial"] = None
+    interface.state_dict["trial_in_progress"] = True
+    interface.state_dict["main_text"] = "Return to center"
     while interface.continue_experiment: 
+        interface.state_dict["current_state"] = "GO_TO_MIDDLE_CIRCLE"
+        if pygame.key.get_pressed()[pygame.K_UP] or pygame.key.get_pressed()[pygame.K_DOWN]:
+            interface.state_dict["current_state"] = None
         interface.run()
+        print(f' is_UP: {interface.state_dict["is_UP"]}, is_DOWN: {interface.state_dict["is_DOWN"]}, in_the_middle: {interface.state_dict["in_the_middle"]}, on_the_move: {interface.state_dict["on_the_move"]}, Current_Position: {interface.state_dict["Current_Position"]}')
 
     pygame.quit()

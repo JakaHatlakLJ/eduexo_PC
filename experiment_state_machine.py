@@ -1,5 +1,5 @@
 from time import time
-
+import numpy as np
 import random
 import numpy as np
 from interface import Colors
@@ -16,25 +16,21 @@ import pygame
 class StateMachine:
     
     INITIAL_SCREEN = 0
-    WAITING_FOR_START = 1
     
-    GO_TO_MIDDLE_CIRCLE = 2
-    IN_MIDDLE_CIRCLE = 3
-    # GO_OUT_OF_MIDDLE_CIRCLE = 4
+    GO_TO_MIDDLE_CIRCLE = 1
+    IN_MIDDLE_CIRCLE = 2
 
-    GO_TO_UPPER_BAND = 5
-    IN_UPPER_BAND = 6
-    # STAY_IN_UPPER_BAND = 7
-    GO_OUT_OF_UPPER_BAND = 8
+    GO_TO_UPPER_BAND = 3
+    IN_UPPER_BAND = 4
+    GO_OUT_OF_UPPER_BAND = 5
 
-    GO_TO_LOWER_BAND = 9
-    IN_LOWER_BAND = 10
-    # STAY_IN_LOWER_BAND = 11
-    GO_OUT_OF_LOWER_BAND = 12
+    GO_TO_LOWER_BAND = 6
+    IN_LOWER_BAND = 7
+    GO_OUT_OF_LOWER_BAND = 8
 
-    TRIAL_TERMINATION = 13
-    PAUSE = 14
-    EXIT = 15
+    TRIAL_TERMINATION = 9
+    PAUSE = 10
+    EXIT = 11
     
     def __init__(self, trial_No = 4, time_delay = [4, 6]):
         self.current_state = None
@@ -49,41 +45,39 @@ class StateMachine:
         # construct reverse state lookup
         all_variables = vars(StateMachine)
         self.reverse_state_lookup = {all_variables[name]: name for name in all_variables if isinstance(all_variables[name], int) and name.isupper()}
+        
     
     def maybe_update_state(self, state_dict):
         experiment_over = False  
 
         self.one_time_ENTER(state_dict) # One time ENTER trigger
-        self.one_time_SPACE(state_dict) # One time SPACE trigger
+        self.one_time_ESCAPE(state_dict) # One time ESC trigger
+        self.latch_SPACE(state_dict) # SPACE latch
 
         #### WHEN NONE
-        if self.current_state is None:
-            if state_dict["enter_pressed"]:
-                self.current_state = StateMachine.WAITING_FOR_START
-                self.set_waiting_for_start(state_dict)
+        if self.current_state is None:  
+            self.current_state = StateMachine.INITIAL_SCREEN
+            self.set_initial_screen(state_dict)
 
         #### AT THE BEGINNING
-        if self.current_state == StateMachine.WAITING_FOR_START:  
-            if state_dict["eduexo_online"]:
-                self.current_state = StateMachine.INITIAL_SCREEN
-                self.set_initial_screen(state_dict)
-
-        if self.current_state == StateMachine.INITIAL_SCREEN:
+        elif self.current_state == StateMachine.INITIAL_SCREEN:
             if state_dict["enter_pressed"]:
                 self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
                 self.set_start_experiment(state_dict)
                 self.set_go_to_middle_circle(state_dict)
 
+        #### WHEN WAITING FOR START
         elif self.current_state == StateMachine.GO_TO_MIDDLE_CIRCLE:
             if state_dict["in_the_middle"]:
                 self.current_state = StateMachine.IN_MIDDLE_CIRCLE
                 self.set_in_middle_circle(state_dict)
 
 
-
-
         elif self.current_state == StateMachine.IN_MIDDLE_CIRCLE:
-            if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
+            if state_dict["in_the_middle"] == False:
+                self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
+                self.set_go_to_middle_circle(state_dict)
+            elif time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 if self.i < len(self.events):
                     if self.events[self.i] == 1:
                         state_dict["current_trial"] = "UP"
@@ -123,7 +117,10 @@ class StateMachine:
 
 
         # #### WHEN TRIAL IS IN PROGRESS
-        # elif self.current_state in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND}:
+        if self.current_state in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND}:
+            state_dict["trial_in_progress"] = True
+        else:
+            state_dict["trial_in_progress"] = False
         #     state_dict["remaining_time"] -= time() - self.prev_time
         #     self.prev_time = time()
 
@@ -150,44 +147,38 @@ class StateMachine:
         #         self.set_trial_termination(state_dict)
 
 
-
-        elif state_dict["space_pressed"]:
-            self.current_state = StateMachine.PAUSE
-            # self.set_pause(state_dict)
+        #### PAUSE
+        if state_dict["space_pressed"] and not self.current_state == StateMachine.EXIT:
+            if self.current_state != StateMachine.PAUSE:
+                state_dict["previous_state"] = self.current_state
+                self.current_state = StateMachine.PAUSE
+                self.set_pause(state_dict)
         
+        #### UNPAUSE
         elif self.current_state == StateMachine.PAUSE:
-            if state_dict["space_pressed"]:
-                self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
-                self.set_go_to_middle_circle(state_dict)
+            if state_dict["space_pressed"] == False:
+                self.current_state = state_dict["previous_state"] 
 
-        elif self.current_state == StateMachine.EXIT:
-            if state_dict["enter_pressed"]:
+        #### WHEN EXITING
+        if self.current_state == StateMachine.EXIT:
+            if state_dict["escape_pressed"]:
                 experiment_over = True
+            elif state_dict["enter_pressed"]:
+                self.i = 0
+                self.current_state = StateMachine.INITIAL_SCREEN
+                state_dict["space_pressed"] = False
+                self.set_initial_screen(state_dict)
 
+        #### FORCE TERMINATION
+        elif state_dict["escape_pressed"] == True :
+            self.current_state = StateMachine.EXIT
+            self.set_error(state_dict, "EXPERIMENT TERMINATED")
 
-        #### WHEN TRIAL TERMINATES
-        # elif self.current_state == StateMachine.TRIAL_TERMINATION:
-        #     if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
-        #         self.current_state = StateMachine.GO_TO_START_CIRCLE
-        #         self.set_go_to_start_circle(state_dict)
-                
-        # elif self.current_state == StateMachine.EXIT:
-        #     if state_dict["enter_pressed"]:
-        #         continue_experiment = False
-                
-        # state_dict["remaining_time"] = float(np.clip(state_dict["remaining_time"], a_min=0, a_max=state_dict["total_time"]))
-        # state_dict["remaining_perc"] = state_dict["remaining_time"] / state_dict["total_time"]
-        
-        
-        # if state_dict["remaining_time"] == 0 and \
-        #    self.current_state not in {StateMachine.PAUSE, StateMachine.STAY_IN_LOWER_BAND, StateMachine.STAY_IN_UPPER_BAND, StateMachine.GO_TO_LOWER_BAND_AFTER_TRIAL, StateMachine.GO_TO_UPPER_BAND_AFTER_TRIAL}:
-        #     if state_dict["block_idx"] < state_dict["total_blocks"] - 1:
-        #         self.current_state = StateMachine.PAUSE
-        #         self.set_pause(state_dict)
-        #         state_dict["needs_update"] = True
-        #     else:
-        #         self.current_state = StateMachine.EXIT
-        #         self.set_exit(state_dict)
+        #### STREAM BREAK
+        if state_dict["stream_online"] == False:
+            self.current_state = StateMachine.EXIT
+            self.set_error(state_dict, "STREAM OFFLINE", "Press ESC to exit or press ENTER when stream is online")
+
 
         if self.current_state is not None:
             state_dict["current_state"] = self.reverse_state_lookup[self.current_state]        
@@ -200,39 +191,34 @@ class StateMachine:
     def set_waiting_for_start(self, state_dict):
         state_dict["state_start_time"] = None
         state_dict["main_text"] = "Waiting to start recording."
-        
-        # state_dict["main_circle_color"] = Colors.BLACK
-        # state_dict["middle_circle_color"] = Colors.BLACK
-        # state_dict["upper_band_color"] = Colors.BLACK
-        # state_dict["lower_band_color"] = Colors.BLACK
 
     def set_initial_screen(self, state_dict): 
         state_dict["state_start_time"] = None
-        state_dict["main_text"] = "Press <Enter> when ready."
-        state_dict["background_color"] = "blue4"
+        state_dict["main_text"] = "Press ENTER when ready."
+        state_dict["background_color"] = "green4"
 
     def set_start_experiment(self, state_dict):
         state_dict["experiment_start"] = time()
-        # state_dict["main_circle_offset"] = (state_dict["marker_position"] - state_dict["cbos"])
         state_dict["main_text"] = ""
         state_dict["main_circle_color"] = Colors.LIGHT_GRAY
+        state_dict["background_color"] = "black"
 
     def set_go_to_middle_circle(self, state_dict):
         state_dict["state_start_time"] = None
-        state_dict["middle_circle_color"] = Colors.DARK_GRAY
+        state_dict["main_text"] = "Return to center"
 
     def set_in_middle_circle(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = 2.0 # s
-        state_dict["middle_circle_color"] = Colors.BLUE
+        state_dict["state_wait_time"] = np.random.uniform(*state_dict["state_wait_time_range"]) # s
+        state_dict["main_text"] = "Wait for trial start"
     
     def set_in_upper_band(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = np.random.uniform(*state_dict["state_wait_time_range"])
+        state_dict["state_wait_time"] = 0.5
 
     def set_in_lower_band(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = np.random.uniform(*state_dict["state_wait_time_range"])
+        state_dict["state_wait_time"] = 0.5
         
     def set_go_out_of_upper_band(self, state_dict):
         state_dict["state_start_time"] = time()
@@ -257,12 +243,19 @@ class StateMachine:
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = 0.5
 
+    def set_pause(self, state_dict):
+        state_dict["main_text"] = "Paused. Press SPACE to continue."
+        state_dict["background_color"] = "darkorange3"
+
     def set_exit(self, state_dict):
-        state_dict["main_circle_color"] = Colors.BLACK
-        state_dict["upper_band_color"] = Colors.BLACK
-        state_dict["lower_band_color"] = Colors.BLACK
-         
-        state_dict["main_text"] = "Press <Enter> to exit."
+        state_dict["background_color"] = "green4"
+        state_dict["main_text"] = "EXPERIMENT FINISHED" 
+        state_dict["sub_text"] = "Press ESC to exit or ENTER to restart."
+
+    def set_error(self, state_dict, main_text = "ERROR OCCURRED", sub_text = "Press ESC to exit or ENTER to restart."):
+        state_dict["background_color"] = "firebrick"
+        state_dict["main_text"] = main_text
+        state_dict["sub_text"] = sub_text
 
     @staticmethod
     def one_time_ENTER(state_dict):
@@ -274,10 +267,17 @@ class StateMachine:
         state_dict["previous_enter_state"] = current_enter_state
 
     @staticmethod
-    def one_time_SPACE(state_dict):
+    def one_time_ESCAPE(state_dict):
+        current_escape_state = pygame.key.get_pressed()[pygame.K_ESCAPE]
+        if current_escape_state and not state_dict["previous_escape_state"]:
+            state_dict["escape_pressed"] = True
+        else:
+            state_dict["escape_pressed"] = False
+        state_dict["previous_escape_state"] = current_escape_state
+
+    @staticmethod
+    def latch_SPACE(state_dict):
         current_space_state = pygame.key.get_pressed()[pygame.K_SPACE]
         if current_space_state and not state_dict["previous_space_state"]:
-            state_dict["space_pressed"] = True
-        else:
-            state_dict["space_pressed"] = False
+            state_dict["space_pressed"] = not state_dict.get("space_pressed", False)
         state_dict["previous_space_state"] = current_space_state

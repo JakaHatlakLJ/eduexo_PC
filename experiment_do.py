@@ -1,12 +1,7 @@
 import json
 import traceback
-from datetime import datetime
 from time import sleep, time
-from pylsl import StreamInlet, resolve_stream
-
-import numpy as np
 import pygame
-import os
 
 from experiment_interface import Interface
 from experiment_state_machine import StateMachine
@@ -26,19 +21,17 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["total_trials"] = experiment_config["experiment"]["total_trials"]
     
     state_dict["experiment_start"] = -1
-  
-    state_dict["current_state"] = StateMachine.INITIAL_SCREEN
-    state_dict["eduexo_online"] = False
+
     state_dict["enter_pressed"] = False
+    state_dict["escape_pressed"] = False
     state_dict["space_pressed"] = False
-    state_dict["previous_enter_state"] = False
-    state_dict["previous_space_state"] = False
+    
+    state_dict["stream_online"] = True
 
     state_dict["background_color"] = "black"
 
     state_dict["needs_update"] = False
-    # state_dict["cbos_set"] = False
-    
+     
     return state_dict
 
 if __name__ == "__main__":
@@ -54,8 +47,6 @@ if __name__ == "__main__":
         while continue_experiment and experiment_over is False:
             if state_dict is None or state_dict["needs_update"]:
                 state_dict = initialize_state_dict(state_dict, experiment_config)
-                if inlet is not None:
-                    state_dict["eduexo_online"] = True
                 interface = Interface(inlet=inlet, state_dict=state_dict, width=state_dict["width"], height=state_dict["height"], maxP=state_dict["maxP"], minP=state_dict["minP"])
                 state_machine = StateMachine(trial_No=state_dict["Trials_No"], time_delay=state_dict["state_wait_time_range"])
 
@@ -65,13 +56,19 @@ if __name__ == "__main__":
             experiment_over, state_dict = state_machine.maybe_update_state(state_dict)
 
             continue_experiment = Interface.run(interface)
-            # print(state_dict)
+            
+            if "previous_state" not in state_dict:
+                state_dict["previous_state"] = None
+            if "current_trial" not in state_dict:
+                state_dict["current_trial"] = None                     
+
+            print(f'Current state: {state_dict["current_state"]}, Previous state: {state_dict["previous_state"]}, Current trial: {state_dict["current_trial"]}, is_UP: {state_dict["is_UP"]}, is_DOWN: {state_dict["is_DOWN"]}, in_the_middle: {state_dict["in_the_middle"]}, on_the_move: {state_dict["on_the_move"]}, enter_pressed: {state_dict["enter_pressed"]}, space_pressed: {state_dict["space_pressed"]}, escape pressed: {state_dict["escape_pressed"]}')
     
     
     except Exception as e:
         print(f"Error: {e}")
         print(traceback.format_exc())
-        continue_experiment = False
+        continue_experiment = False 
             
 
 
