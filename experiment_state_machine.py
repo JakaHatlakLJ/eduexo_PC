@@ -28,19 +28,15 @@ class StateMachine:
     IN_LOWER_BAND = 7
     GO_OUT_OF_LOWER_BAND = 8
 
-    TRIAL_TERMINATION = 9
+    TIMEOUT = 9
     PAUSE = 10
     EXIT = 11
     
-    def __init__(self, trial_No = 4, time_delay = [4, 6]):
+    def __init__(self, trial_No = 4):
         self.current_state = None
 
+        self.trial_No = trial_No
         self.i = 0
-
-        ones = np.ones(int(trial_No/2))
-        zeros = np.zeros(int(trial_No/2))
-        self.events = np.append(ones, zeros)
-        random.shuffle(self.events) # quasi-random events
         
         # construct reverse state lookup
         all_variables = vars(StateMachine)
@@ -80,18 +76,19 @@ class StateMachine:
             elif time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 if self.i < len(self.events):
                     if self.events[self.i] == 1:
+                        state_dict["event_id"] = 1
                         state_dict["current_trial"] = "UP"
+                        state_dict["current_trial_No"] = self.i + 1
                         self.current_state = StateMachine.GO_TO_UPPER_BAND
-                        self.set_go_to_upper_band(state_dict)
+                        self.set_go_to_band(state_dict)
                         self.i += 1
                     else:
                         state_dict["current_trial"] = "DOWN"
+                        state_dict["event_id"] = 0
+                        state_dict["current_trial_No"] = self.i + 1
                         self.current_state = StateMachine.GO_TO_LOWER_BAND
-                        self.set_go_to_lower_band(state_dict)
+                        self.set_go_to_band(state_dict)
                         self.i += 1
-                else:
-                    self.current_state = StateMachine.EXIT
-                    self.set_exit(state_dict)
 
         elif self.current_state == StateMachine.GO_TO_UPPER_BAND:
             if state_dict["is_UP"]:
@@ -102,49 +99,49 @@ class StateMachine:
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
                 self.set_go_to_middle_circle(state_dict)
+                if self.i == len(self.events):
+                    self.current_state = StateMachine.EXIT
+                    self.set_exit(state_dict)
 
         elif self.current_state == StateMachine.GO_TO_LOWER_BAND:
             if state_dict["is_DOWN"]:
                 self.current_state = StateMachine.IN_LOWER_BAND
-                self.set_in_lower_band(state_dict)
-                
+                self.set_in_lower_band(state_dict)              
         
         elif self.current_state == StateMachine.IN_LOWER_BAND:
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
-                self.set_go_to_middle_circle(state_dict)                   
+                self.set_go_to_middle_circle(state_dict)  
+                if self.i == len(self.events):
+                    self.current_state = StateMachine.EXIT
+                    self.set_exit(state_dict)              
+
+        elif self.current_state == StateMachine.TIMEOUT:
+            if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
+                self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
+                self.set_go_to_middle_circle(state_dict)
+
+
+
 
 
 
         # #### WHEN TRIAL IS IN PROGRESS
         if self.current_state in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND}:
+            state_dict["remaining_time"] = round(state_dict["timeout"] - (time() - state_dict["trial_time"]), 1)
             state_dict["trial_in_progress"] = True
+            if state_dict["remaining_time"] <= 0:
+                self.current_state = StateMachine.TIMEOUT
+                self.set_go_to_middle_circle(state_dict) # izbriši ko updatas set_trial_timeout
+                self.set_trial_timeout(state_dict)
         else:
             state_dict["trial_in_progress"] = False
-        #     state_dict["remaining_time"] -= time() - self.prev_time
-        #     self.prev_time = time()
+            state_dict["remaining_time"] = ""
 
-        #     if self.current_state == StateMachine.GO_TO_LOWER_BAND:
-        #         maybe_next_state = StateMachine.STAY_IN_LOWER_BAND
-        #         side = "right"
-        #     else:
-        #         maybe_next_state = StateMachine.STAY_IN_UPPER_BAND
-        #         side = "left"
-            
-        #     if np.linalg.norm(state_dict["main_circle_position"] - state_dict[side + "_circle_position"]) < state_dict[side + "_circle_radius"]:
-        #         self.current_state = maybe_next_state
-        #         self.set_trial_termination(state_dict)
 
-        #     elif (side == "right" and state_dict["main_circle_position"][0] > (state_dict[side + "_circle_position"][0] + state_dict[side + "_circle_radius"])) or \
-        #          (side == "left" and state_dict["main_circle_position"][0] < (state_dict[side + "_circle_position"][0] - state_dict[side + "_circle_radius"])):
-                
-        #         if self._get_line_distance_to_center(self.prev_main_circle_position, state_dict["main_circle_position"], state_dict[side + "_circle_position"]) < state_dict[side + "_circle_radius"]:
-        #             self.set_unsuccessful_trial(state_dict, side)
-        #         else:
-        #             self.set_unsuccessful_trial(state_dict, side)
-                
-        #         self.current_state = maybe_next_state
-        #         self.set_trial_termination(state_dict)
+
+
+
 
 
         #### PAUSE
@@ -152,7 +149,7 @@ class StateMachine:
             if self.current_state != StateMachine.PAUSE:
                 state_dict["previous_state"] = self.current_state
                 self.current_state = StateMachine.PAUSE
-                self.set_pause(state_dict)
+                # self.set_pause(state_dict)
         
         #### UNPAUSE
         elif self.current_state == StateMachine.PAUSE:
@@ -185,6 +182,10 @@ class StateMachine:
         else:
             state_dict["current_state"] = "None"
 
+        if self.current_state not in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND, StateMachine.PAUSE}:
+            state_dict["event_id"] = None
+            state_dict["current_trial"] = None
+
         return experiment_over, state_dict
 
 
@@ -203,6 +204,11 @@ class StateMachine:
         state_dict["main_circle_color"] = Colors.LIGHT_GRAY
         state_dict["background_color"] = "black"
 
+        ones = np.ones(int(self.trial_No/2))
+        zeros = np.zeros(int(self.trial_No/2))
+        self.events = np.append(ones, zeros)
+        random.shuffle(self.events) # quasi-random events
+
     def set_go_to_middle_circle(self, state_dict):
         state_dict["state_start_time"] = None
         state_dict["main_text"] = "Return to center"
@@ -214,38 +220,28 @@ class StateMachine:
     
     def set_in_upper_band(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = 0.5
+        state_dict["state_wait_time"] = 1
 
     def set_in_lower_band(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = 0.5
-        
-    def set_go_out_of_upper_band(self, state_dict):
-        state_dict["state_start_time"] = time()
-        state_dict["upper_band_color"] = Colors.DARK_GRAY
-        state_dict["lower_band_color"] = Colors.BLUE
-    
-    def set_go_out_of_lower_band(self, state_dict):
-        state_dict["state_start_time"] = time()
-        state_dict["upper_band_color"] = Colors.BLUE
-        state_dict["lower_band_color"] = Colors.DARK_GRAY
+        state_dict["state_wait_time"] = 1
 
-    def set_go_to_upper_band(self, state_dict):
-        self.set_go_to_band(state_dict)
+    # def set_go_to_upper_band(self, state_dict):
+    #     self.set_go_to_band(state_dict)
     
-    def set_go_to_lower_band(self, state_dict):
-        self.set_go_to_band(state_dict)
+    # def set_go_to_lower_band(self, state_dict):
+    #     self.set_go_to_band(state_dict)
 
     def set_go_to_band(self, state_dict):
-        state_dict["state_start_time"] = time()
+        state_dict["trial_time"] = time()
         
+    def set_trial_timeout(self, state_dict):
+        state_dict["state_start_time"] = time()
+        state_dict["state_wait_time"] = 0.5
+
     def set_trial_termination(self, state_dict):        
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = 0.5
-
-    def set_pause(self, state_dict):
-        state_dict["main_text"] = "Paused. Press SPACE to continue."
-        state_dict["background_color"] = "darkorange3"
 
     def set_exit(self, state_dict):
         state_dict["background_color"] = "green4"

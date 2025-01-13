@@ -33,11 +33,15 @@ class Interface:
         self.textRect_UP_sign = self.UP_sign.get_rect(center = (self.width/2, self.height/2))
         self.textRect_DOWN_sign = self.DOWN_sign.get_rect(center = (self.width/2, self.height/2))
     
-        self.current_trial = self.font3.render('Current Trial', True, "white")
-        self.textRect_current_trial = self.current_trial.get_rect(center = (0.1*self.width, 0.45*self.height))
+        self.current_trial_text = self.font3.render('Current Trial', True, "white")
+        self.textRect_current_trial = self.current_trial_text.get_rect(center = (0.1*self.width, 0.4*self.height))
+        self.remaining_time_text = self.font3.render('Remaining Time', True, "white")
+        self.textRect_remaining_time = self.remaining_time_text.get_rect(center = (0.88*self.width, 0.4*self.height))
 
     def update(self):
-        self.state_dict["Current_Position"] = self.sample[0]
+        self.state_dict["current_position"] = self.sample[0]
+        self.state_dict["current_velocity"] = self.sample[1]
+        self.state_dict["current_torque"] = self.sample[2]
         
         if self.loc < self.height/2 + 5 and self.loc > self.height/2 - 5:
             self.state_dict["in_the_middle"] = True
@@ -94,21 +98,18 @@ class Interface:
         if self.loc < 0.9 * self.pas + self.offset or self.loc > self.height - 0.9 * self.pas - self.offset:
             self.in_band = True
 
-
         if self.state_dict["current_state"] == "INITIAL_SCREEN":
-            self.screen.fill(self.state_dict["background_color"])
             main_text = self.font.render(self.state_dict["main_text"], True, "white")
             textRect_main = main_text.get_rect(center = (self.width/2, self.height/2))
             self.screen.blit(main_text, textRect_main)
 
         elif self.state_dict["current_state"] == "PAUSE":
-            self.screen.fill(self.state_dict["background_color"])
-            main_text = self.font.render(self.state_dict["main_text"], True, "white")
+            self.screen.fill("darkorange3")
+            main_text = self.font.render("Paused. Press SPACE to continue.", True, "white")
             textRect_main = main_text.get_rect(center = (self.width/2, self.height/2))
             self.screen.blit(main_text, textRect_main)
 
         elif self.state_dict["current_state"] == "EXIT":
-            self.screen.fill(self.state_dict["background_color"])
             main_text = self.font.render(self.state_dict["main_text"], True, "white")
             sub_text = self.font3.render(self.state_dict["sub_text"], True, "white")
             textRect_main = main_text.get_rect(center = (self.width/2, self.height/2))
@@ -147,9 +148,18 @@ class Interface:
             p2 = pygame.Vector2(self.width, self.height - self.offset - self.pas)
             pygame.draw.line(self.screen, "white", p1, p2)      
 
+            
+            remaining_time = self.font3.render(str(self.state_dict["remaining_time"]), True, "white")
+            Rect_remaining_time = remaining_time.get_rect(center = (0.88*self.width, 0.5*self.height))
+            current_trial = self.font3.render(f'{str(self.state_dict["current_trial_No"])}/{str(self.state_dict["Trials_No"])}', True, "white")
+            Rect_current_trial = current_trial.get_rect(center = (0.1*self.width, 0.5*self.height))
+
             self.screen.blit(self.UP_text, self.textRect_UP)
             self.screen.blit(self.DOWN_text, self.textRect_DOWN)
-            self.screen.blit(self.current_trial, self.textRect_current_trial)
+            self.screen.blit(self.current_trial_text, self.textRect_current_trial)
+            self.screen.blit(self.remaining_time_text, self.textRect_remaining_time)
+            self.screen.blit(remaining_time, Rect_remaining_time)
+            self.screen.blit(current_trial, Rect_current_trial)
 
             if not self.in_band:
                 if (keys[pygame.K_UP] or self.state_dict["current_trial"] == "UP") and self.state_dict["trial_in_progress"]:
@@ -196,6 +206,6 @@ if __name__ == "__main__":
         if pygame.key.get_pressed()[pygame.K_UP] or pygame.key.get_pressed()[pygame.K_DOWN]:
             interface.state_dict["current_state"] = None
         interface.run()
-        print(f' is_UP: {interface.state_dict["is_UP"]}, is_DOWN: {interface.state_dict["is_DOWN"]}, in_the_middle: {interface.state_dict["in_the_middle"]}, on_the_move: {interface.state_dict["on_the_move"]}, Current_Position: {interface.state_dict["Current_Position"]}')
+        print(f' is_UP: {interface.state_dict["is_UP"]}, is_DOWN: {interface.state_dict["is_DOWN"]}, in_the_middle: {interface.state_dict["in_the_middle"]}, on_the_move: {interface.state_dict["on_the_move"]}, Current Position: {interface.state_dict["current_position"]}')
 
     pygame.quit()
