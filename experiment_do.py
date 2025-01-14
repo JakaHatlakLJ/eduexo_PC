@@ -32,8 +32,8 @@ def initialize_state_dict(state_dict, experiment_config):
     
     state_dict["stream_online"] = True
 
-    state_dict["event_id"] = None
-    state_dict["current_trial"] = None
+    state_dict["event_id"] = 99
+    state_dict["event_type"] = ""
     state_dict["current_trial_No"] = 0
     state_dict["remaining_time"] = ""
 
@@ -94,7 +94,7 @@ def stream_events_data(stop_event, state_dict, logger):
             # 2) Send an event once every event_interval seconds
             if elapsed_time >= event_interval:
                 event_id = state_dict["event_id"]
-                event_type = state_dict["current_trial"]
+                event_type = state_dict["event_type"]
                 event_timestamp = local_clock()
                 event_data = {
                     'Sample_Type': 'event',
@@ -146,10 +146,10 @@ if __name__ == "__main__":
 
     try:
         while continue_experiment and experiment_over is False:
-            # if state_dict["needs_update"]:
-            #     state_dict = initialize_state_dict(state_dict, experiment_config)
-            #     interface = Interface(inlet=inlet, state_dict=state_dict, width=state_dict["width"], height=state_dict["height"], maxP=state_dict["maxP"], minP=state_dict["minP"])
-            #     state_machine = StateMachine(trial_No=state_dict["Trials_No"], time_delay=state_dict["state_wait_time_range"])
+            if state_dict["needs_update"]:
+                state_dict = initialize_state_dict(state_dict, experiment_config)
+                interface = Interface(inlet=inlet, state_dict=state_dict, width=state_dict["width"], height=state_dict["height"], maxP=state_dict["maxP"], minP=state_dict["minP"])
+                state_machine = StateMachine(trial_No=state_dict["Trials_No"])
 
             # time_start = time()
             pygame.event.clear()
@@ -159,11 +159,10 @@ if __name__ == "__main__":
             
             if "previous_state" not in state_dict:
                 state_dict["previous_state"] = None
-            if "current_trial" not in state_dict:
-                state_dict["current_trial"] = None                     
+            if "event_type" not in state_dict:
+                state_dict["event_type"] = None                     
 
-            logger.info(f'Current state: {state_dict["current_state"]}, Remaining time: {state_dict["remaining_time"]}, Current trial No: {state_dict["current_trial_No"]}, Event ID : {state_dict["event_id"]}, Current trial: {state_dict["current_trial"]}, enter_pressed: {state_dict["enter_pressed"]}, space_pressed: {state_dict["space_pressed"]}, escape pressed: {state_dict["escape_pressed"]}')
-    
+            logger.info(f'Current state: {state_dict["current_state"]}, Current trial No: {state_dict["current_trial_No"]}, Event ID : {state_dict["event_id"]}, Event type: {state_dict["event_type"]}, enter_pressed: {state_dict["enter_pressed"]}, space_pressed: {state_dict["space_pressed"]}, escape pressed: {state_dict["escape_pressed"]}')
     
     except Exception as e:
         logger.error(f"An error occurred during the experiment loop: {e}", exc_info=True)
