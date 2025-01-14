@@ -2,7 +2,6 @@ from time import time
 import numpy as np
 import random
 import numpy as np
-from interface import Colors
 import pygame
 
 
@@ -14,6 +13,17 @@ import pygame
 
 
 class StateMachine:
+    """
+    EVENT IDS vs EVEN TYPES:\n
+    99 - nothing\n
+    10 - prompt "UP" shown\n
+    11 - user started moving during "UP" trial\n
+    20 - prompt "DOWN" shown\n
+    21 - user started moving during "DOWN" trial\n
+    30 - successful trial\n
+    40 - failed trial\n
+    50 - trial timeout\n
+    """
     
     INITIAL_SCREEN = 0
     
@@ -28,9 +38,10 @@ class StateMachine:
     IN_LOWER_BAND = 7
     GO_OUT_OF_LOWER_BAND = 8
 
-    TIMEOUT = 9
-    PAUSE = 10
-    EXIT = 11
+    FAILURE = 9
+    TIMEOUT = 10
+    PAUSE = 11
+    EXIT = 12
     
     def __init__(self, trial_No = 4):
         self.current_state = None
@@ -62,13 +73,13 @@ class StateMachine:
                 self.set_start_experiment(state_dict)
                 self.set_go_to_middle_circle(state_dict)
 
-        #### WHEN WAITING FOR START
+        #### WHEN WAITING FOR INITAL POSITION
         elif self.current_state == StateMachine.GO_TO_MIDDLE_CIRCLE:
             if state_dict["in_the_middle"]:
                 self.current_state = StateMachine.IN_MIDDLE_CIRCLE
                 self.set_in_middle_circle(state_dict)
 
-
+        #### WHEN WAITING IN THE MIDDLE FOR TRIAL TO START
         elif self.current_state == StateMachine.IN_MIDDLE_CIRCLE:
             if state_dict["in_the_middle"] == False:
                 self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
@@ -76,73 +87,84 @@ class StateMachine:
             elif time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 if self.i < len(self.events):
                     if self.events[self.i] == 1:
-                        state_dict["event_id"] = 1
-                        state_dict["current_trial"] = "UP"
+                        state_dict["event_id"] = 10
+                        state_dict["event_type"] = "UP"
                         state_dict["current_trial_No"] = self.i + 1
                         self.current_state = StateMachine.GO_TO_UPPER_BAND
                         self.set_go_to_band(state_dict)
                         self.i += 1
                     else:
-                        state_dict["current_trial"] = "DOWN"
-                        state_dict["event_id"] = 0
+                        state_dict["event_type"] = "DOWN"
+                        state_dict["event_id"] = 20
                         state_dict["current_trial_No"] = self.i + 1
                         self.current_state = StateMachine.GO_TO_LOWER_BAND
                         self.set_go_to_band(state_dict)
                         self.i += 1
 
+        #### WHEN "UP" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_UPPER_BAND:
+            if state_dict["in_the_middle"] is False:
+                state_dict["event_type"] = "m_UP"
+                state_dict["event_id"] = 11
             if state_dict["is_UP"]:
                 self.current_state = StateMachine.IN_UPPER_BAND
                 self.set_in_upper_band(state_dict)
+                self.set_success(state_dict)
+            elif state_dict["is_DOWN"]:
+                self.current_state = StateMachine.FAILURE
+                self.set_failure(state_dict)  
                        
+        #### IF "UP" TRIAL IS SUCCESSFUL
         elif self.current_state == StateMachine.IN_UPPER_BAND:
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
                 self.set_go_to_middle_circle(state_dict)
                 if self.i == len(self.events):
                     self.current_state = StateMachine.EXIT
-                    self.set_exit(state_dict)
+                    self.set_exit_or_error(state_dict)
 
+        #### WHEN "DOWN" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_LOWER_BAND:
+            if state_dict["in_the_middle"] is False:
+                state_dict["event_type"] = "m_DOWN"
+                state_dict["event_id"] = 21
             if state_dict["is_DOWN"]:
                 self.current_state = StateMachine.IN_LOWER_BAND
-                self.set_in_lower_band(state_dict)              
+                self.set_in_lower_band(state_dict)
+                self.set_success(state_dict)
+            elif state_dict["is_UP"]:
+                self.current_state = StateMachine.FAILURE
+                self.set_failure(state_dict)                              
         
+        #### IF "DOWN" TRIAL IS SUCCESSFUL
         elif self.current_state == StateMachine.IN_LOWER_BAND:
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
                 self.set_go_to_middle_circle(state_dict)  
                 if self.i == len(self.events):
                     self.current_state = StateMachine.EXIT
-                    self.set_exit(state_dict)              
+                    self.set_exit_or_error(state_dict)              
 
-        elif self.current_state == StateMachine.TIMEOUT:
+        #### WHEN TIMEOUT OR FAILURE OCCUR
+        elif self.current_state in {StateMachine.TIMEOUT, StateMachine.FAILURE}:
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
-                self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
-                self.set_go_to_middle_circle(state_dict)
+                if self.i == len(self.events):
+                    self.current_state = StateMachine.EXIT
+                    self.set_exit_or_error(state_dict)
+                else:
+                    self.current_state = StateMachine.GO_TO_MIDDLE_CIRCLE
+                    self.set_go_to_middle_circle(state_dict)
 
-
-
-
-
-
-        # #### WHEN TRIAL IS IN PROGRESS
+        #### WHEN TRIAL IS IN PROGRESS
         if self.current_state in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND}:
             state_dict["remaining_time"] = round(state_dict["timeout"] - (time() - state_dict["trial_time"]), 1)
             state_dict["trial_in_progress"] = True
             if state_dict["remaining_time"] <= 0:
                 self.current_state = StateMachine.TIMEOUT
-                self.set_go_to_middle_circle(state_dict) # izbriši ko updatas set_trial_timeout
                 self.set_trial_timeout(state_dict)
         else:
             state_dict["trial_in_progress"] = False
             state_dict["remaining_time"] = ""
-
-
-
-
-
-
 
         #### PAUSE
         if state_dict["space_pressed"] and not self.current_state == StateMachine.EXIT:
@@ -157,24 +179,24 @@ class StateMachine:
                 self.current_state = state_dict["previous_state"] 
 
         #### WHEN EXITING
-        if self.current_state == StateMachine.EXIT:
+        if self.current_state == StateMachine.EXIT and state_dict["stream_online"] == True:
             if state_dict["escape_pressed"]:
                 experiment_over = True
             elif state_dict["enter_pressed"]:
                 self.i = 0
-                self.current_state = StateMachine.INITIAL_SCREEN
+                self.current_state = None
                 state_dict["space_pressed"] = False
-                self.set_initial_screen(state_dict)
+                state_dict["needs_update"] = True
 
         #### FORCE TERMINATION
         elif state_dict["escape_pressed"] == True :
             self.current_state = StateMachine.EXIT
-            self.set_error(state_dict, "EXPERIMENT TERMINATED")
+            self.set_exit_or_error(state_dict, "firebrick", "EXPERIMENT TERMINATED")
 
         #### STREAM BREAK
         if state_dict["stream_online"] == False:
             self.current_state = StateMachine.EXIT
-            self.set_error(state_dict, "STREAM OFFLINE", "Press ESC to exit or press ENTER when stream is online")
+            self.set_exit_or_error(state_dict, "firebrick", "STREAM OFFLINE", "Press ESC to exit or press ENTER when stream is online")
 
 
         if self.current_state is not None:
@@ -182,12 +204,11 @@ class StateMachine:
         else:
             state_dict["current_state"] = "None"
 
-        if self.current_state not in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND, StateMachine.PAUSE}:
-            state_dict["event_id"] = None
-            state_dict["current_trial"] = None
+        if self.current_state == StateMachine.GO_TO_MIDDLE_CIRCLE:
+            state_dict["event_id"] = 99
+            state_dict["event_type"] = ""
 
         return experiment_over, state_dict
-
 
     def set_waiting_for_start(self, state_dict):
         state_dict["state_start_time"] = None
@@ -201,7 +222,6 @@ class StateMachine:
     def set_start_experiment(self, state_dict):
         state_dict["experiment_start"] = time()
         state_dict["main_text"] = ""
-        state_dict["main_circle_color"] = Colors.LIGHT_GRAY
         state_dict["background_color"] = "black"
 
         ones = np.ones(int(self.trial_No/2))
@@ -221,36 +241,39 @@ class StateMachine:
     def set_in_upper_band(self, state_dict):
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = 1
+        state_dict["main_text"] = "SUCCESS"
 
     def set_in_lower_band(self, state_dict):
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = 1
-
-    # def set_go_to_upper_band(self, state_dict):
-    #     self.set_go_to_band(state_dict)
-    
-    # def set_go_to_lower_band(self, state_dict):
-    #     self.set_go_to_band(state_dict)
+        state_dict["main_text"] = "SUCCESS"
 
     def set_go_to_band(self, state_dict):
         state_dict["trial_time"] = time()
         
+    def set_success(self, state_dict):
+        state_dict["event_type"] = "SUCCESS"
+        state_dict["event_id"] = 30    
+
+    def set_failure(self, state_dict):
+        state_dict["state_start_time"] = time()
+        state_dict["state_wait_time"] = 1.5
+        state_dict["main_text"] = state_dict["event_type"] = "FAIL"
+        state_dict["event_id"] = 40  
+
     def set_trial_timeout(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = 0.5
+        state_dict["state_wait_time"] = 1.5
+        state_dict["main_text"] = state_dict["event_type"] = "TIMEOUT"
+        state_dict["event_id"] = 50 
 
     def set_trial_termination(self, state_dict):        
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = 0.5
 
-    def set_exit(self, state_dict):
-        state_dict["background_color"] = "green4"
-        state_dict["main_text"] = "EXPERIMENT FINISHED" 
-        state_dict["sub_text"] = "Press ESC to exit or ENTER to restart."
-
-    def set_error(self, state_dict, main_text = "ERROR OCCURRED", sub_text = "Press ESC to exit or ENTER to restart."):
-        state_dict["background_color"] = "firebrick"
-        state_dict["main_text"] = main_text
+    def set_exit_or_error(self, state_dict, background_color = "green4", main_text = "EXPERIMENT FINISHED", sub_text = "Press ESC to exit or ENTER to restart."):
+        state_dict["background_color"] = background_color
+        state_dict["main_text"] = main_text 
         state_dict["sub_text"] = sub_text
 
     @staticmethod
