@@ -1,5 +1,5 @@
 import pygame
-from pylsl import StreamInlet, resolve_stream
+from pylsl import StreamInlet, resolve_stream, resolve_byprop
 
 class Interface:
     """
@@ -30,24 +30,19 @@ class Interface:
         self.clock = pygame.time.Clock()
         self.continue_experiment = True
 
-        self.font = pygame.font.Font('freesansbold.ttf', 48) # Select font and size
-        self.font2 = pygame.font.Font('freesansbold.ttf', 100)
-        self.font3 = pygame.font.Font('freesansbold.ttf', 24)
+        #### CREATE DIFFERENT FONTS
+        self.font = pygame.font.SysFont('Arial', 48)    # Select font and size
+        self.font2 = pygame.font.SysFont('Arial', 100)
+        self.font3 = pygame.font.SysFont('Arial', 24)
+        self.font4 = pygame.font.SysFont('Arial', 24, bold=True)
 
-        self.UP_text = self.font.render('UP', True, "white") # Text, Anti alias, Color
-        self.DOWN_text = self.font.render('DOWN', True, "white") # Text, Anti alias, Color
-        self.UP_sign = self.font2.render('UP', True, "white")
-        self.DOWN_sign = self.font2.render('DOWN', True, "white")
-        
-        self.textRect_UP = self.UP_text.get_rect(center = (self.width/2, self.offset + self.pas/2)) # Location
-        self.textRect_DOWN = self.DOWN_text.get_rect(center = (self.width/2, self.height - self.offset - self.pas/2))
-        self.textRect_UP_sign = self.UP_sign.get_rect(center = (self.width/2, self.height/2))
-        self.textRect_DOWN_sign = self.DOWN_sign.get_rect(center = (self.width/2, self.height/2))
-    
-        self.current_trial_text = self.font3.render('Current Trial', True, "white")
-        self.textRect_current_trial = self.current_trial_text.get_rect(center = (0.1*self.width, 0.4*self.height))
-        self.remaining_time_text = self.font3.render('Remaining Time', True, "white")
-        self.textRect_remaining_time = self.remaining_time_text.get_rect(center = (0.88*self.width, 0.4*self.height))
+        #### CREATE ALL STATIC TEXTs
+        self.UP_text = self._create_static_text(text="UP", y_position=self.offset + self.pas/2, font=1)                                         # Upper band text
+        self.DOWN_text = self._create_static_text(text="DOWN", y_position=self.height - self.offset - self.pas/2, font=1)                       # Lower band text
+        self.UP_sign = self._create_static_text(text="UP", font=2)                                                                              # UP instruction text
+        self.DOWN_sign = self._create_static_text(text="DOWN", font=2)                                                                          # DOWN instruction text    
+        self.current_trial_text = self._create_static_text(text='Current Trial', x_position=0.1*self.width, y_position=0.45*self.height)        # Current trial text
+        self.remaining_time_text = self._create_static_text(text='Remaining Time', x_position=0.88*self.width, y_position=0.45*self.height)     # Remaining time text
 
     def update(self):
         """
@@ -66,7 +61,7 @@ class Interface:
             self.state_dict["current_torque"] = self.sample[2]
 
         loc = self.sample[0]
-        self.loc = (loc / (self.maxP - self.minP) - self.minP / (self.maxP - self.minP)) * (self.height-2*self.offset) + self.offset 
+        self.loc = (loc / (self.maxP - self.minP) - self.minP / (self.maxP - self.minP)) * (self.height-2*self.offset) + self.offset        # linear transformation of EXO angle to dot position on screen
 
         if self.loc < self.height/2 + 5 and self.loc > self.height/2 - 5:
             self.state_dict["in_the_middle"] = True
@@ -92,7 +87,9 @@ class Interface:
     
     @staticmethod
     def lsl_stream():
-        streams = resolve_stream('type', 'EXO')
+        streams = resolve_byprop('type', 'EXO', timeout= 5)
+        if not streams:
+            raise RuntimeError(f"No LSL stream found of type: 'EXO'")
         inlet = StreamInlet(streams[0])
         print("Receiving data...")
         return inlet
@@ -114,25 +111,36 @@ class Interface:
         if self.state_dict["is_UP"] or self.state_dict["is_DOWN"]:
             self.in_band = True
 
+        #### INITIAL SCREEN
         if self.state_dict["current_state"] == "INITIAL_SCREEN":
-            main_text = self.font.render(self.state_dict["main_text"], True, "white")
-            textRect_main = main_text.get_rect(center = (self.width/2, self.height/2))
-            self.screen.blit(main_text, textRect_main)
+            self._draw_dynamic_text(text=self.state_dict["main_text"], font=1)
 
+        #### PAUSE SCREEN
         elif self.state_dict["current_state"] == "PAUSE":
             self.screen.fill("darkorange3")
-            main_text = self.font.render("Paused. Press SPACE to continue.", True, "white")
-            textRect_main = main_text.get_rect(center = (self.width/2, self.height/2))
-            self.screen.blit(main_text, textRect_main)
+            self._draw_dynamic_text(text="Paused. Press SPACE to continue.", font=1)
 
+        #### EXIT, TERMINATION OR STREAM DISCONNECTION SCREENS
         elif self.state_dict["current_state"] == "EXIT":
-            main_text = self.font.render(self.state_dict["main_text"], True, "white")
-            sub_text = self.font3.render(self.state_dict["sub_text"], True, "white")
-            textRect_main = main_text.get_rect(center = (self.width/2, self.height/2))
-            textRect_sub = sub_text.get_rect(center = (self.width/2 - 10, 0.6*self.height))
-            self.screen.blit(main_text, textRect_main)
-            self.screen.blit(sub_text, textRect_sub)
+            if self.state_dict["avg_time"] == None:
+                self._draw_dynamic_text(text=self.state_dict["main_text"], y_position=0.45*self.height, font=1)     # Status text
+                self._draw_dynamic_text(text=self.state_dict["sub_text"], y_position=0.55*self.height, font=4)      # Procedure instructions
+            else:
+                if self.state_dict["avg_time"] == 0:
+                    time = "-- sec"
+                    number = f'0/{str(self.state_dict["Trials_No"])}'
+                else:
+                    time = f'{str(self.state_dict["avg_time"])} sec'
+                    number =f'{str(self.state_dict["succ_trials"])}/{str(self.state_dict["Trials_No"])}'
 
+                self._draw_dynamic_text(text=self.state_dict["main_text"], y_position=0.3*self.height, font=1)                                  # Status text
+                self._draw_dynamic_text(text=self.state_dict["sub_text"], x_position=self.width/2 - 10, y_position=0.4*self.height, font=4)     # Procedure instructions
+                self._draw_dynamic_text("Avg. trial completition time:", x_position=0.6*self.width, y_position=0.55*self.height)                # Time results text
+                self._draw_dynamic_text("Successful trials:", x_position=0.36*self.width, y_position=0.55*self.height)                          # Successfulness results text
+                self._draw_dynamic_text(text=time, x_position=0.6*self.width, y_position=0.6*self.height)                                       # Time results
+                self._draw_dynamic_text(text=number, x_position=0.36*self.width, y_position=0.6*self.height)                                    # Successfulness results
+
+        #### ALL THE OTHER STATES
         else:
             p11 = pygame.Vector2(0, self.offset + self.pas/2)
             p12 = pygame.Vector2(self.width, self.offset + self.pas/2)
@@ -143,6 +151,8 @@ class Interface:
                     color = "red"    
                 elif keys[pygame.K_UP] or self.state_dict["trial_in_progress"] and not self.in_band: 
                     color = "orange"
+                else:
+                    color = "black"
                 pygame.draw.line(self.screen, color, p11, p12, width = self.pas)
 
             p21 = pygame.Vector2(0, self.height - self.offset - self.pas/2)
@@ -154,6 +164,8 @@ class Interface:
                     color = "red"    
                 elif keys[pygame.K_DOWN] or self.state_dict["trial_in_progress"] and not self.in_band:
                     color = "orange"          
+                else:
+                    color = "black"                    
                 pygame.draw.line(self.screen, color, p21, p22, width = self.pas)
 
             if self.state_dict["current_state"] == "FAILURE":
@@ -161,61 +173,48 @@ class Interface:
                     pygame.draw.line(self.screen, "red", p11, p12, width = self.pas)
                 elif self.state_dict["is_DOWN"]:
                     pygame.draw.line(self.screen, "red", p21, p22, width = self.pas)
-    
-            p1 = pygame.Vector2(0, self.offset)
-            p2 = pygame.Vector2(self.width, self.offset)
-            pygame.draw.line(self.screen, "white", p1, p2)
 
-            p1 = pygame.Vector2(0, self.offset + self.pas)
-            p2 = pygame.Vector2(self.width, self.offset + self.pas)
-            pygame.draw.line(self.screen, "white", p1, p2)
+            #### DRAW BANDS 
+            pygame.draw.line(self.screen, "white", (0, self.offset), (self.width, self.offset))                                                         # Top line of UPPER BAND
+            pygame.draw.line(self.screen, "white", (0, self.offset + self.pas), (self.width, self.offset + self.pas))                                   # Bottom line of UPPER BAND
+            pygame.draw.line(self.screen, "white", (0, self.height-self.offset), (self.width, self.height-self.offset))                                 # Bottom line of LOWER BAND
+            pygame.draw.line(self.screen, "white", (0, self.height - self.offset - self.pas), (self.width, self.height - self.offset - self.pas))       # Top line of LOWER BAND 
 
-            p1 = pygame.Vector2(0, self.height-self.offset)
-            p2 = pygame.Vector2(self.width, self.height-self.offset)
-            pygame.draw.line(self.screen, "white", p1, p2)
+            #### DRAW REMAINING TIME
+            self._draw_dynamic_text(text=str(self.state_dict["remaining_time"]), x_position=0.88*self.width, y_position=0.55*self.height)
 
-            p1 = pygame.Vector2(0, self.height - self.offset - self.pas)
-            p2 = pygame.Vector2(self.width, self.height - self.offset - self.pas)
-            pygame.draw.line(self.screen, "white", p1, p2)      
+            #### DRAW TRIAL COUNTER
+            self._draw_dynamic_text(text=f'{str(self.state_dict["current_trial_No"])}/{str(self.state_dict["Trials_No"])}', x_position=0.1*self.width, y_position=0.55*self.height)
 
-            
-            remaining_time = self.font3.render(str(self.state_dict["remaining_time"]), True, "white")
-            Rect_remaining_time = remaining_time.get_rect(center = (0.88*self.width, 0.5*self.height))
-            current_trial = self.font3.render(f'{str(self.state_dict["current_trial_No"])}/{str(self.state_dict["Trials_No"])}', True, "white")
-            Rect_current_trial = current_trial.get_rect(center = (0.1*self.width, 0.5*self.height))
+            #### DRAW ALL CONSTANT TEXTs
+            self.screen.blit(*self.UP_text)
+            self.screen.blit(*self.DOWN_text)  
+            self.screen.blit(*self.current_trial_text)
+            self.screen.blit(*self.remaining_time_text)
 
-            self.screen.blit(self.UP_text, self.textRect_UP)
-            self.screen.blit(self.DOWN_text, self.textRect_DOWN)
-            self.screen.blit(self.current_trial_text, self.textRect_current_trial)
-            self.screen.blit(self.remaining_time_text, self.textRect_remaining_time)
-            self.screen.blit(remaining_time, Rect_remaining_time)
-            self.screen.blit(current_trial, Rect_current_trial)
-
+            #### DRAW INSTRUCTIONS WHILE TRAIL IS IN PROGRESS
             if not self.in_band:
                 if (keys[pygame.K_UP] or self.state_dict["event_type"] == "UP") and self.state_dict["trial_in_progress"]:
-                    self.screen.blit(self.UP_sign, self.textRect_UP_sign)
+                    self.screen.blit(*self.UP_sign)
                 elif (keys[pygame.K_DOWN] or self.state_dict["event_type"] == "DOWN") and self.state_dict["trial_in_progress"]:
-                    self.screen.blit(self.DOWN_sign, self.textRect_DOWN_sign)
+                    self.screen.blit(*self.DOWN_sign)
             
-            if self.state_dict["current_state"] in {"GO_TO_MIDDLE_CIRCLE", "IN_MIDDLE_CIRCLE"}:
-                Instructions_text = self.font.render(self.state_dict["main_text"], True, "white")
-                textRect_Instructions = Instructions_text.get_rect(center = (self.width/2, self.height*0.4))
-                self.screen.blit(Instructions_text, textRect_Instructions)  
-        
+            #### RETURN TO CENTER TEXT
+            if self.state_dict["current_state"] in {"RETURN_TO_CENTER", "IN_MIDDLE_CIRCLE"}:
+                self._draw_dynamic_text(text=self.state_dict["main_text"], color="white", y_position=0.4*self.height, font=1)        
                 pygame.draw.circle(self.screen, "white", (self.width/2, self.height/2), 17, width= 2)              
                 if self.state_dict["in_the_middle"]:
                     pygame.draw.circle(self.screen, "green", (self.width/2, self.height/2), 16)
 
+            #### SUCCESSFUL TRIAL SIGN
             elif self.state_dict["current_state"] in {"IN_UPPER_BAND", "IN_LOWER_BAND"}:
-                Instructions_text = self.font.render(self.state_dict["main_text"], True, "green")
-                textRect_Instructions = Instructions_text.get_rect(center = (self.width/2, self.height*0.5))
-                self.screen.blit(Instructions_text, textRect_Instructions)  
+                self._draw_dynamic_text(text=self.state_dict["main_text"], color="green", font=1)
 
+            #### FAILED TRIAL SIGN
             elif self.state_dict["current_state"] in {"TIMEOUT", "FAILURE"}:
-                Instructions_text = self.font.render(self.state_dict["main_text"], True, "red")
-                textRect_Instructions = Instructions_text.get_rect(center = (self.width/2, self.height*0.5))
-                self.screen.blit(Instructions_text, textRect_Instructions)  
-            
+                self._draw_dynamic_text(text=self.state_dict["main_text"], color="red", font=1)
+
+            #### DRAW THE MAIN DOT AT THE END
             pygame.draw.circle(self.screen, "white", dot_pos, 10)
 
     def run(self):
@@ -237,8 +236,40 @@ class Interface:
             if event.type == pygame.QUIT:
                 self.continue_experiment = False
 
+
         return self.continue_experiment                        
+    
+    def _draw_dynamic_text(self, text="[SYSTEM]: No input given", color="white", background_color=None, x_position=None, y_position=None, font=3):
+        if font == 1:
+            t = self.font.render(text, True, color, background_color)
+        elif font == 2:
+            t = self.font2.render(text, True, color, background_color)
+        elif font == 4:
+            t = self.font4.render(text, True, color, background_color)
+        else:
+            t = self.font3.render(text, True, color, background_color)
+        if x_position == None:
+            x_position = self.width/2
+        if y_position == None:
+            y_position = self.height/2
+        tR = t.get_rect(center = (x_position, y_position))
+        self.screen.blit(t, tR)
         
+    def _create_static_text(self, text="[SYSTEM]: No input given", color="white", background_color=None, x_position=None, y_position=None, font=3):
+        if font == 1:
+            t = self.font.render(text, True, color, background_color)
+        elif font == 2:
+            t = self.font2.render(text, True, color, background_color)
+        elif font == 4:
+            t = self.font4.render(text, True, color, background_color)
+        else:
+            t = self.font3.render(text, True, color, background_color)
+        if x_position == None:
+            x_position = self.width/2
+        if y_position == None:
+            y_position = self.height/2
+        tR = t.get_rect(center = (x_position, y_position))
+        return (t, tR)
         
 if __name__ == "__main__":
     inlet = Interface.lsl_stream()
@@ -246,8 +277,16 @@ if __name__ == "__main__":
     interface.state_dict["event_type"] = None
     interface.state_dict["trial_in_progress"] = True
     interface.state_dict["main_text"] = "Return to center"
+    interface.state_dict["remaining_time"] = "3.0"
+    interface.state_dict["current_trial_No"] = 3
+    interface.state_dict["Trials_No"] = 20
+
+    interface.state_dict["sub_text"] = "xoxoxoxoxoxoxoxoxoxoxoxoxoxoxoxoxoxoxoxox"
+    interface.state_dict["avg_time"] = 0
+
+
     while interface.continue_experiment: 
-        interface.state_dict["current_state"] = "GO_TO_MIDDLE_CIRCLE"
+        interface.state_dict["current_state"] = "EXIT"
         if pygame.key.get_pressed()[pygame.K_UP] or pygame.key.get_pressed()[pygame.K_DOWN]:
             interface.state_dict["current_state"] = None
         interface.run()

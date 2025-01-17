@@ -1,6 +1,5 @@
 import json
-import traceback
-from time import time, sleep
+from time import sleep
 import pygame
 from pylsl import StreamInfo, StreamOutlet, local_clock
 import threading
@@ -10,13 +9,16 @@ from experiment_interface import Interface
 from experiment_state_machine import StateMachine
 
 def initialize_state_dict(state_dict, experiment_config):
+    """
+    Read JSON configuration file and create state_dict for saving current program parameters
+    """
     if state_dict is None:
         state_dict = {}
         state_dict["state_wait_time"] = -1
 
     state_dict["Trials_No"] = experiment_config["experiment"]["number_of_trials"]
     state_dict["state_wait_time_range"] = experiment_config["experiment"]["state_wait_time_range"]
-    state_dict["timeout"] = experiment_config["experiment"]["trial_timeout"]
+    state_dict["timeout"] = state_dict["TO"] = experiment_config["experiment"]["trial_timeout"]
     state_dict["width"] = experiment_config["experiment"]["screen_width"]
     state_dict["height"] = experiment_config["experiment"]["screen_height"]
     state_dict["maxP"] = experiment_config["experiment"]["maximum_arm_position_deg"]
@@ -36,7 +38,7 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["event_type"] = ""
     state_dict["current_trial_No"] = 0
     state_dict["remaining_time"] = ""
-
+    state_dict["avg_time"] = None
 
     state_dict["current_position"] = 0
     state_dict["current_velocity"] = 0
@@ -162,12 +164,13 @@ if __name__ == "__main__":
             if "event_type" not in state_dict:
                 state_dict["event_type"] = None                     
 
-            logger.info(f'Current state: {state_dict["current_state"]}, Current trial No: {state_dict["current_trial_No"]}, Event ID : {state_dict["event_id"]}, Event type: {state_dict["event_type"]}, enter_pressed: {state_dict["enter_pressed"]}, space_pressed: {state_dict["space_pressed"]}, escape pressed: {state_dict["escape_pressed"]}')
+            logger.info(f'Current state: {state_dict["current_state"]}, Event ID : {state_dict["event_id"]}, Event type: {state_dict["event_type"]}, enter_pressed: {state_dict["enter_pressed"]}, space_pressed: {state_dict["space_pressed"]}, escape pressed: {state_dict["escape_pressed"]}')
     
     except Exception as e:
         logger.error(f"An error occurred during the experiment loop: {e}", exc_info=True)
         stop_event.set()
         continue_experiment = False 
+
 
             
 
