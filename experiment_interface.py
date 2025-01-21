@@ -56,9 +56,9 @@ class Interface:
             self.state_dict["stream_online"] = False
         else:
             self.state_dict["stream_online"] = True
-            self.state_dict["current_position"] = self.sample[0]
-            self.state_dict["current_velocity"] = self.sample[1]
-            self.state_dict["current_torque"] = self.sample[2]
+            self.state_dict["current_position"] = round(self.sample[0], 3)
+            self.state_dict["current_velocity"] = round(self.sample[1], 3)
+            self.state_dict["current_torque"] = round(self.sample[2], 3)
 
         loc = self.sample[0]
         self.loc = (loc / (self.maxP - self.minP) - self.minP / (self.maxP - self.minP)) * (self.height-2*self.offset) + self.offset        # linear transformation of EXO angle to dot position on screen
@@ -281,7 +281,7 @@ if __name__ == "__main__":
     interface.state_dict["current_trial_No"] = 3
     interface.state_dict["Trials_No"] = 20
 
-    interface.state_dict["sub_text"] = "xoxoxoxoxoxoxoxoxoxoxoxoxoxoxoxoxoxoxoxox"
+    interface.state_dict["sub_text"] = "testing Interface !?"
     interface.state_dict["avg_time"] = 0
 
 
