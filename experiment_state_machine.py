@@ -244,13 +244,13 @@ class StateMachine:
 
     def set_return_to_center(self, state_dict):
         state_dict["state_start_time"] = None
-        state_dict["main_text"] = "Return to center"
+        state_dict["main_text"] = ""
         state_dict["timeout"] = state_dict["TO"]
 
     def set_in_middle_circle(self, state_dict):
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = np.random.uniform(*state_dict["state_wait_time_range"]) # s
-        state_dict["main_text"] = "Wait for trial start"
+        state_dict["main_text"] = ""
     
     def set_in_upper_band(self, state_dict):
         state_dict["state_start_time"] = time()

@@ -56,9 +56,9 @@ class Interface:
             self.state_dict["stream_online"] = False
         else:
             self.state_dict["stream_online"] = True
-            self.state_dict["current_position"] = round(self.sample[0], 3)
-            self.state_dict["current_velocity"] = round(self.sample[1], 3)
-            self.state_dict["current_torque"] = round(self.sample[2], 3)
+            self.state_dict["current_position"] = round(self.sample[0], 5)
+            self.state_dict["current_velocity"] = round(self.sample[1], 5)
+            self.state_dict["current_torque"] = round(self.sample[2], 5)
 
         loc = self.sample[0]
         self.loc = (loc / (self.maxP - self.minP) - self.minP / (self.maxP - self.minP)) * (self.height-2*self.offset) + self.offset        # linear transformation of EXO angle to dot position on screen

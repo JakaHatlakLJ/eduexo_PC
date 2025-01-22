@@ -73,6 +73,7 @@ def stream_events_data(stop_event, state_dict, logger, timestamp):
     event_interval = state_dict["event_stream_interval"]   # how often we send an 'event'
     sleep_interval = 0.01    # how often we send 'data' samples
     elapsed_time = 0.0
+    old_event = 99
 
     while not stop_event.is_set():
         try:
@@ -96,7 +97,7 @@ def stream_events_data(stop_event, state_dict, logger, timestamp):
             elapsed_time += sleep_interval
 
             # 2) Send an event once every event_interval seconds
-            if elapsed_time >= event_interval:
+            if elapsed_time >= event_interval and old_event != state_dict["event_id"]:
                 event_id = state_dict["event_id"]
                 event_type = state_dict["event_type"]
                 # event_timestamp = local_clock()
@@ -109,8 +110,9 @@ def stream_events_data(stop_event, state_dict, logger, timestamp):
                 }
                 event_json_str = json.dumps(event_data)
                 outlet.push_sample([event_json_str], timestamp=timestamp)
-
+                old_event = state_dict["event_id"]
                 elapsed_time = 0.0
+                print(event_json_str)
 
         except Exception as e:
             logger.error(f"Error in streaming Events data: {e}")

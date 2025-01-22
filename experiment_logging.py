@@ -95,7 +95,7 @@ class Logger:
 
         self.save_datapoint()
 
-        print(self.data_dict)
+        # print(self.data_dict)
 
     def close(self):
         self.data_file.close()

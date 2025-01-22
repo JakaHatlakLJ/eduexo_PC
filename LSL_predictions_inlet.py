@@ -11,14 +11,14 @@ class LSLPredictionReporter:
       3. Logs them in memory and prints them (optional).
 
     Usage:
-        reporter = LSLPredictionReporter(stream_name='MyPredictionsStream')
+        reporter = LSLPredictionReporter(stream_name='PredictionsStream')
         reporter.start_reporting()
         # Press Ctrl+C or kill the process to stop
     """
 
     def __init__(
         self,
-        stream_name: str = "MyPredictionsStream",
+        stream_name: str = "PredictionStream",
         max_samples: int = 0,
         poll_interval: float = 0.01,
         verbose: bool = True
@@ -125,7 +125,7 @@ class LSLPredictionReporter:
 if __name__ == "__main__":
     # Example usage
     reporter = LSLPredictionReporter(
-        stream_name="MyPredictionsStream",
+        stream_name="PredictionStream",
         max_samples=0,   # 0 means run until manually stopped
         poll_interval=0.01,
         verbose=True
