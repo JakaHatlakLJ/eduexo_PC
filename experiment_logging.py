@@ -5,8 +5,10 @@ import random
 
 class Logger:
 
-    def __init__(self, results_path, participant_id, no_log):
+    def __init__(self, results_path, participant_id, no_log, frequency_path=None):
         self.results_path = results_path
+        self.frequency_path = frequency_path
+        self.first_loop = True
 
         self.participant_id = participant_id
         assert isinstance(self.participant_id, int), "Participant ID has to be an integer!"
@@ -18,6 +20,10 @@ class Logger:
         if not self.no_log:
             os.makedirs(os.path.join(self.results_path, self.participant_folder), exist_ok=True)
             self.data_exists = False
+            if frequency_path != None:
+                os.makedirs(os.path.join(self.frequency_path), exist_ok=True)
+                self.frequency_exist = False
+
 
         self.data_dict = {}
         self.data_dict["current_torque"] = 0
@@ -97,5 +103,27 @@ class Logger:
 
         # print(self.data_dict)
 
+    def frequency_log(self, timestamp):
+        if self.no_log or self.frequency_path == None:
+            return
+        
+        if not self.frequency_exist:    
+            file_idx = len([filename for filename in os.listdir(os.path.join(self.frequency_path)) if filename.startswith("frequency_data")])
+            file_idx = f'{file_idx:02d}'
+            self.frequency_file = open(os.path.join(self.frequency_path, f"frequency_data_{file_idx}.txt"), "w")
+            self.frequency_exist = True
+
+        if self.first_loop:
+            self.first_loop = False
+            self.previous_timestamp = timestamp
+            return
+
+        freq = 1 / (timestamp - self.previous_timestamp)
+
+        self.frequency_file.write(str(freq) + "\n")
+        self.previous_timestamp = timestamp
+
     def close(self):
         self.data_file.close()
+        if self.frequency_path != None:
+            self.frequency_file.close()

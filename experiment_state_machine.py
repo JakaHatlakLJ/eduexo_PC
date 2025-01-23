@@ -167,15 +167,23 @@ class StateMachine:
         #### PAUSE
         if state_dict["space_pressed"] and not self.current_state == StateMachine.EXIT:
             if self.current_state != StateMachine.PAUSE:
+                if state_dict["trial_in_progress"]:
+                    state_dict["timeout"] = state_dict["remaining_time"]
+                state_dict["event_id"] = 99
+                state_dict["event_type"] = ""
                 self.previous_state = self.current_state
                 self.current_state = StateMachine.PAUSE
-                state_dict["timeout"] = state_dict["remaining_time"]
         
         #### UNPAUSE
         elif self.current_state == StateMachine.PAUSE:
             if state_dict["space_pressed"] == False:
-                self.current_state = self.previous_state
+                if self.previous_state == "IN_MIDDLE_CIRCLE":
+                    self.previous_state = StateMachine.RETURN_TO_CENTER
+                    self.set_return_to_center(state_dict)
+                else:    
+                    self.current_state = self.previous_state
                 state_dict["trial_time"] = time()
+                state_dict["state_start_time"] = time()
 
         #### WHEN EXITING
         if self.current_state == StateMachine.EXIT and state_dict["stream_online"] == True:
@@ -213,7 +221,7 @@ class StateMachine:
 
 
         if self.current_state is not None:
-            state_dict["current_state"] = self.reverse_state_lookup[self.current_state]        
+            state_dict["current_state"] = self.reverse_state_lookup[self.current_state]             
         else:
             state_dict["current_state"] = "None"
 

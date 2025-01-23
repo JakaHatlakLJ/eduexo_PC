@@ -4,6 +4,7 @@ import pygame
 from pylsl import StreamInfo, StreamOutlet, local_clock
 import threading
 import logging
+import os
 
 import argparse
 from experiment_interface import Interface
@@ -121,6 +122,7 @@ def stream_events_data(stop_event, state_dict, logger, timestamp):
     logger.info("Stopped streaming Events data.")
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--no_log", action="store_true", help="Disable logging")
     args = parser.parse_args()
@@ -133,7 +135,7 @@ if __name__ == "__main__":
     logger = logging.getLogger("LSL")
 
     # Setup results logging
-    data_log = Logger(experiment_config["results_path"], experiment_config["participant"]["id"], no_log=args.no_log)
+    data_log = Logger(experiment_config["results_path"], experiment_config["participant"]["id"], no_log=args.no_log, frequency_path=experiment_config["frequency_path"])
     data_log.save_experiment_config(experiment_config)
 
     # Create an Inlet for incoming LSL Stream
@@ -180,8 +182,9 @@ if __name__ == "__main__":
                 state_dict["event_type"] = None                     
 
             data_log.save_data_dict(state_dict)
+            data_log.frequency_log(timestamp)
 
-            # logger.info(f'Current state: {state_dict["current_state"]}, Event ID : {state_dict["event_id"]}, Event type: {state_dict["event_type"]}, enter_pressed: {state_dict["enter_pressed"]}, space_pressed: {state_dict["space_pressed"]}, escape pressed: {state_dict["escape_pressed"]}')
+            logger.info(f'Current state: {state_dict["current_state"]}, Event ID : {state_dict["event_id"]}, Event type: {state_dict["event_type"]}, enter_pressed: {state_dict["enter_pressed"]}, space_pressed: {state_dict["space_pressed"]}, escape pressed: {state_dict["escape_pressed"]}')
     
     except Exception as e:
         logger.error(f"An error occurred during the experiment loop: {e}", exc_info=True)
