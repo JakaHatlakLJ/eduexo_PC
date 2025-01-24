@@ -103,7 +103,7 @@ class Logger:
 
         # print(self.data_dict)
 
-    def frequency_log(self, timestamp):
+    def frequency_log(self, state_dict):
         if self.no_log or self.frequency_path == None:
             return
         
@@ -115,13 +115,13 @@ class Logger:
 
         if self.first_loop:
             self.first_loop = False
-            self.previous_timestamp = timestamp
+            self.previous_timestamp = state_dict["timestamp"]
             return
 
-        freq = 1 / (timestamp - self.previous_timestamp)
+        freq = 1 / (state_dict["timestamp"] - self.previous_timestamp)
 
         self.frequency_file.write(str(freq) + "\n")
-        self.previous_timestamp = timestamp
+        self.previous_timestamp = state_dict["timestamp"]
 
     def close(self):
         self.data_file.close()

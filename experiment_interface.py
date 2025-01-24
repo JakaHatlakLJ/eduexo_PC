@@ -271,32 +271,32 @@ class Interface:
         tR = t.get_rect(center = (x_position, y_position))
         return (t, tR)
     
+    #### FOR RUNING GUI IN THREAD
+    # def thread_run(self, stop_event, cont_lock):
+    #     """
+    #     Runs following functions in order:\n
+    #     - Interface.update()\n
+    #     - Interface.draw()\n
+    #     \n
+    #     Then checks if "X" button for quiting was pressed to terminate experiment
+    #     """
+    #     while not stop_event is set:
+    #         try:
+    #             dot_pos = self.update()
+    #             self.draw(dot_pos)
 
-    def thread_run(self, stop_event, cont_lock):
-        """
-        Runs following functions in order:\n
-        - Interface.update()\n
-        - Interface.draw()\n
-        \n
-        Then checks if "X" button for quiting was pressed to terminate experiment
-        """
-        while not stop_event is set:
-            try:
-                dot_pos = self.update()
-                self.draw(dot_pos)
+    #             pygame.display.update()
+    #             self.clock.tick(60)
 
-                pygame.display.update()
-                self.clock.tick(60)
+    #             for event in pygame.event.get():
+    #                 if event.type == pygame.QUIT:
+    #                     self.continue_experiment = False
 
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        self.continue_experiment = False
-
-                global continue_experiment_g
-                with cont_lock:
-                    continue_experiment_g = self.continue_experiment
-            except Exception as e:
-                print(e) 
+    #             global continue_experiment_g
+    #             with cont_lock:
+    #                 continue_experiment_g = self.continue_experiment
+    #         except Exception as e:
+    #             print(e) 
 
 
         

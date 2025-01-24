@@ -8,7 +8,8 @@
         "maximum_arm_position_deg": 180,
         "minimum_arm_position_deg": 55,
         "total_trials": 0,
-        "event_stream_interval": 1.0
+        "data_stream_interval": 0.01,
+        "event_stream_interval": 0.5
     },
     "participant": {
         "age": 22,
@@ -16,5 +17,5 @@
         "name": "Jaka"
     },
     "results_path": "./experiment_results",
-    "frequency_path": "./frequency_data"
+    "frequency_path": "None"
 }

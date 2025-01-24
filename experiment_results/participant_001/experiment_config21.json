@@ -1,0 +1,24 @@
+{
+    "experiment": {
+        "data_stream_interval": 0.01,
+        "event_stream_interval": 0.02,
+        "maximum_arm_position_deg": 180,
+        "minimum_arm_position_deg": 55,
+        "number_of_trials": 10,
+        "screen_height": 950,
+        "screen_width": 1580,
+        "state_wait_time_range": [
+            1,
+            3
+        ],
+        "total_trials": 0,
+        "trial_timeout": 3
+    },
+    "frequency_path": "None",
+    "participant": {
+        "age": 22,
+        "id": 1,
+        "name": "Jaka"
+    },
+    "results_path": "./experiment_results"
+}
