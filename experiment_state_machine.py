@@ -104,7 +104,7 @@ class StateMachine:
 
         #### WHEN "UP" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_UPPER_BAND:
-            state_dict["event_id"] = 99                                         # RESET event_id back to 99 after triggering it one time
+            # state_dict["event_id"] = 99                                         # RESET event_id back to 99 after triggering it one time
             if state_dict["in_the_middle"] is False:
                 state_dict["event_type"] = "m_UP"
                 state_dict["event_id"] = 11
@@ -130,7 +130,7 @@ class StateMachine:
 
         #### WHEN "DOWN" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_LOWER_BAND:
-            state_dict["event_id"] = 99                                     # RESET event_id back to 99 after triggering it one time
+            # state_dict["event_id"] = 99                                     # RESET event_id back to 99 after triggering it one time
             if state_dict["in_the_middle"] is False:
                 state_dict["event_type"] = "m_DOWN"
                 state_dict["event_id"] = 21
@@ -212,8 +212,8 @@ class StateMachine:
 
         #### WHILE TRIAL IS IN PROGRESS
         if self.current_state in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND}:
-            if state_dict["event_id"] in {11, 21}:
-                state_dict["event_id"] = 99                                                                         # RESET event_id to 99 after moving out of target
+            # if state_dict["event_id"] in {11, 21}:
+            #     state_dict["event_id"] = 99                                                                         # RESET event_id to 99 after moving out of target
             state_dict["remaining_time"] = round(state_dict["timeout"] - (time() - state_dict["trial_time"]), 1)
             state_dict["trial_in_progress"] = True
             if state_dict["remaining_time"] <= 0:

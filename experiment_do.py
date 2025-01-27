@@ -72,11 +72,11 @@ def stream_events_data(stop_event, state_dict, logger):
     logger.info("Stream is online...")
 
     # Configuration
-    event_interval = state_dict["event_stream_interval"]        # how often we send an 'event'
+    # event_interval = state_dict["event_stream_interval"]        # how often we send an 'event' sample if "event_id" is 99
     data_interval = state_dict["data_stream_interval"]          # how often we send 'data' samples
-    last_event_time = perf_counter()
+    # last_event_time = perf_counter()
     last_data_time = perf_counter()
-    reset = True
+    old_event = 99
 
     while not stop_event.is_set():
         try:
@@ -104,39 +104,21 @@ def stream_events_data(stop_event, state_dict, logger):
                 last_data_time = current_time
 
             # 2) Send an event once every event_interval seconds
-            if current_time - last_event_time >= event_interval:
+            if old_event != state_dict["event_id"] and not state_dict["event_id"] == 99:
                 event_id = state_dict["event_id"]
                 event_type = state_dict["event_type"]
-                # event_timestamp = local_clock()
                 event_data = {
                     'Sample_Type': 'event',
                     'Event_ID': event_id,
                     'Event_Type': event_type,
                     'Event_Timestamp': timestamp,
-                    'test_expansion': 10
                 }
                 event_json_str = json.dumps(event_data)
                 outlet.push_sample([event_json_str], timestamp=timestamp)
                 print(event_json_str)
+                old_event = state_dict["event_id"]
 
-                last_event_time = current_time
-                reset = True
-
-            if state_dict["event_id"] in {10, 11, 20, 21} and reset == True:
-                event_id = state_dict["event_id"]
-                event_type = state_dict["event_type"]
-                # event_timestamp = local_clock()
-                event_data = {
-                    'Sample_Type': 'event',
-                    'Event_ID': event_id,
-                    'Event_Type': event_type,
-                    'Event_Timestamp': timestamp,
-                    'test_expansion': 10
-                }
-                event_json_str = json.dumps(event_data)
-                outlet.push_sample([event_json_str], timestamp=timestamp)
-                print(event_json_str)
-                reset = False
+                # last_event_time = current_time
 
         except Exception as e:
             logger.error(f"Error in streaming Events data: {e}")
@@ -158,8 +140,8 @@ if __name__ == "__main__":
     logger = logging.getLogger("LSL")
 
     # Setup results logging
-    frequency_path = None if experiment_config["frequency_path"] == "None" else experiment_config.get("frequency_path")
-    data_log = Logger(experiment_config["results_path"], experiment_config["participant"]["id"], no_log=args.no_log, frequency_path=frequency_path)
+    save_data = True if experiment_config["experiment"]["save_data"] == 1 else False
+    data_log = Logger(experiment_config["experiment"]["results_path"], experiment_config["experiment"]["frequency_path"], experiment_config["participant"]["id"], no_log=args.no_log, save_data=save_data)
     data_log.save_experiment_config(experiment_config)
 
     # Create an Inlet for incoming LSL Stream

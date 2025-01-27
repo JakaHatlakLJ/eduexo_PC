@@ -5,7 +5,8 @@ import random
 
 class Logger:
 
-    def __init__(self, results_path, participant_id, no_log, frequency_path=None):
+    def __init__(self, results_path, frequency_path, participant_id, no_log, save_data=False):
+        self.save_data = save_data
         self.results_path = results_path
         self.frequency_path = frequency_path
         self.first_loop = True
@@ -17,12 +18,11 @@ class Logger:
         self.no_log = no_log
         self.trajectory_data_exists = None
 
-        if not self.no_log:
+        if not self.no_log or not self.save_data:
             os.makedirs(os.path.join(self.results_path, self.participant_folder), exist_ok=True)
             self.data_exists = False
-            if frequency_path != None:
-                os.makedirs(os.path.join(self.frequency_path), exist_ok=True)
-                self.frequency_exist = False
+            os.makedirs(os.path.join(self.frequency_path), exist_ok=True)
+            self.frequency_exist = False
 
 
         self.data_dict = {}
@@ -55,7 +55,7 @@ class Logger:
         self.data_exists = True
 
     def save_datapoint(self):
-        if self.no_log:
+        if self.no_log or not self.save_data:
             return
         
         if not self.data_exists:
@@ -78,7 +78,7 @@ class Logger:
         self.data_file.write("\t".join(datapoint_to_write) + "\n")
 
     def save_experiment_config(self, experiment_config, filename=None):
-        if not self.no_log:
+        if not self.no_log and self.save_data:
             if filename is None:
                 file_idx = len([filename for filename in os.listdir(os.path.join(self.results_path, self.participant_folder)) if filename.startswith("experiment_config")])
                 filename = "experiment_config" + f"{file_idx:02d}" + ".json"
@@ -104,7 +104,7 @@ class Logger:
         # print(self.data_dict)
 
     def frequency_log(self, state_dict):
-        if self.no_log or self.frequency_path == None:
+        if self.no_log or not self.save_data:
             return
         
         if not self.frequency_exist:    
@@ -124,6 +124,7 @@ class Logger:
         self.previous_timestamp = state_dict["timestamp"]
 
     def close(self):
+        if self.no_log or not self.save_data:
+            return
         self.data_file.close()
-        if self.frequency_path != None:
-            self.frequency_file.close()
+        self.frequency_file.close()

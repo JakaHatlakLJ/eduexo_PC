@@ -9,13 +9,15 @@
         "minimum_arm_position_deg": 55,
         "total_trials": 0,
         "data_stream_interval": 0.01,
-        "event_stream_interval": 0.5
+        "event_stream_interval": 5,
+        "results_path": "./experiment_results",
+        "frequency_path": "./frequency_data",
+        "save_data": 0,
+        "loop_frequency": 200
     },
     "participant": {
         "age": 22,
         "id": 1,
         "name": "Jaka"
-    },
-    "results_path": "./experiment_results",
-    "frequency_path": "None"
+    }
 }

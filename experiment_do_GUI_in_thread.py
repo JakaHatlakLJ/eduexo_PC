@@ -1,5 +1,5 @@
 import json
-from time import sleep
+from time import perf_counter
 import pygame
 from pylsl import StreamInfo, StreamOutlet, local_clock
 import threading
@@ -27,6 +27,7 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["maxP"] = experiment_config["experiment"]["maximum_arm_position_deg"]
     state_dict["minP"] = experiment_config["experiment"]["minimum_arm_position_deg"]
     state_dict["total_trials"] = experiment_config["experiment"]["total_trials"]
+    state_dict["data_stream_interval"] = experiment_config["experiment"]["data_stream_interval"]
     state_dict["event_stream_interval"] = experiment_config["experiment"]["event_stream_interval"]
 
     state_dict["experiment_start"] = -1
@@ -53,7 +54,7 @@ def initialize_state_dict(state_dict, experiment_config):
      
     return state_dict
 
-def stream_events_data(stop_event, state_dict, logger, timestamp):
+def stream_events_data(stop_event, state_dict, logger):
     """
     Continuously stream position/torque data (0.1s interval)
     and send an 'event' every 10s using one LSL Outlet.
@@ -71,37 +72,41 @@ def stream_events_data(stop_event, state_dict, logger, timestamp):
     logger.info("Stream is online...")
 
     # Configuration
-    event_interval = state_dict["event_stream_interval"]   # how often we send an 'event'
-    sleep_interval = 0.01    # how often we send 'data' samples
-    elapsed_time = 0.0
+    event_interval = state_dict["event_stream_interval"]        # how often we send an 'event' sample if "event_id" is 99
+    data_interval = state_dict["data_stream_interval"]          # how often we send 'data' samples
+    last_event_time = perf_counter()
+    last_data_time = perf_counter()
     old_event = 99
 
     while not stop_event.is_set():
         try:
             # 1) Stream position/torque (data) on every loop
-            timestamp = timestamp
-            position = state_dict["current_position"]  # current position
-            velocity = state_dict["current_velocity"]  # current torque
-            torque   = state_dict["current_torque"]   # current torque
-            data_sample = {
-                'Sample_Type': 'data',
-                'Position': position,
-                'Velocity': velocity,
-                'Torque': torque,
-                'Timestamp': timestamp
-            }
-            data_json_str = json.dumps(data_sample)
-            outlet.push_sample([data_json_str], timestamp=timestamp)
+            current_time = perf_counter()
+            timestamp = local_clock()
+            global timestamp_g
+            with the_lock:
+                timestamp_g = timestamp
+            if current_time - last_data_time >= data_interval:
+                position = state_dict["current_position"]  # current position
+                velocity = state_dict["current_velocity"]  # current torque
+                torque   = state_dict["current_torque"]   # current torque
+                data_sample = {
+                    'Sample_Type': 'data',
+                    'Position': position,
+                    'Velocity': velocity,
+                    'Torque': torque,
+                    'Timestamp': timestamp
+                }
+                data_json_str = json.dumps(data_sample)
+                outlet.push_sample([data_json_str], timestamp=timestamp)
+                # print(data_json_str)
 
-            # Sleep before checking if it’s time for an event
-            sleep(sleep_interval)
-            elapsed_time += sleep_interval
+                last_data_time = current_time
 
             # 2) Send an event once every event_interval seconds
-            if elapsed_time >= event_interval and old_event != state_dict["event_id"]:
+            if (current_time - last_event_time >= event_interval and state_dict["event_id"] == 99) or old_event != state_dict["event_id"]:
                 event_id = state_dict["event_id"]
                 event_type = state_dict["event_type"]
-                # event_timestamp = local_clock()
                 event_data = {
                     'Sample_Type': 'event',
                     'Event_ID': event_id,
@@ -111,9 +116,10 @@ def stream_events_data(stop_event, state_dict, logger, timestamp):
                 }
                 event_json_str = json.dumps(event_data)
                 outlet.push_sample([event_json_str], timestamp=timestamp)
+                # print(event_json_str)
                 old_event = state_dict["event_id"]
-                elapsed_time = 0.0
-                print(event_json_str)
+
+                last_event_time = current_time
 
         except Exception as e:
             logger.error(f"Error in streaming Events data: {e}")
@@ -137,7 +143,8 @@ if __name__ == "__main__":
     logger = logging.getLogger("LSL")
 
     # Setup results logging
-    data_log = Logger(experiment_config["results_path"], experiment_config["participant"]["id"], no_log=args.no_log, frequency_path=experiment_config["frequency_path"])
+    save_data = True if experiment_config["experiment"]["save_data"] == 1 else False
+    data_log = Logger(experiment_config["experiment"]["results_path"], experiment_config["experiment"]["frequency_path"], experiment_config["participant"]["id"], no_log=args.no_log, save_data=save_data)
     data_log.save_experiment_config(experiment_config)
 
     # Create an Inlet for incoming LSL Stream
@@ -150,11 +157,11 @@ if __name__ == "__main__":
     state_machine = StateMachine(trial_No=state_dict["Trials_No"])
 
     # Create a background thread for sending Data through LSL Stream
-    timestamp = local_clock()
     stop_event = threading.Event()
+    the_lock = threading.Lock()
     streamer_thread = threading.Thread(
         target=stream_events_data,
-        args=(stop_event, state_dict, logger, timestamp),
+        args=(stop_event, state_dict, logger),
         daemon=True
     )
     streamer_thread.start()
@@ -168,34 +175,39 @@ if __name__ == "__main__":
 
     continue_experiment = True
     experiment_over = False
+    timestamp_g = local_clock()
+    previous_time = perf_counter()
+    loop_frequency = experiment_config["experiment"]["loop_frequency"]
 
 
     try:
         while continue_experiment and experiment_over is False:
-            if state_dict["needs_update"]:
-                state_dict = initialize_state_dict(state_dict, experiment_config)
-                interface = Interface(inlet=inlet, state_dict=state_dict, width=state_dict["width"], height=state_dict["height"], maxP=state_dict["maxP"], minP=state_dict["minP"])
-                state_machine = StateMachine(trial_No=state_dict["Trials_No"])
+            current_time = perf_counter()
 
-            # time_start = time()
-            pygame.event.clear()
-            timestamp = local_clock()
-            state_dict["timestamp"] = timestamp
+            if current_time - previous_time >= 1 / loop_frequency:
+                if state_dict["needs_update"]:
+                    state_dict = initialize_state_dict(state_dict, experiment_config)
+                    interface = Interface(inlet=inlet, state_dict=state_dict, width=state_dict["width"], height=state_dict["height"], maxP=state_dict["maxP"], minP=state_dict["minP"])
+                    state_machine = StateMachine(trial_No=state_dict["Trials_No"])
 
-            experiment_over, state_dict= state_machine.maybe_update_state(state_dict)
-            # continue_experiment = Interface.run(interface)
-            with cont_lock:
-                continue_experiment = continue_experiment_g
-            
-            if "previous_state" not in state_dict:
-                state_dict["previous_state"] = None
-            if "event_type" not in state_dict:
-                state_dict["event_type"] = None                     
+                # time_start = time()
+                pygame.event.clear()
+                with the_lock:
+                    state_dict["timestamp"] = timestamp_g
 
-            data_log.save_data_dict(state_dict)
-            data_log.frequency_log(timestamp)
+                experiment_over, state_dict= state_machine.maybe_update_state(state_dict)
+                with cont_lock:
+                    continue_experiment = continue_experiment_g
+                
+                if "previous_state" not in state_dict:
+                    state_dict["previous_state"] = None
+                if "event_type" not in state_dict:
+                    state_dict["event_type"] = None                     
 
-            # logger.info(f'Current state: {state_dict["current_state"]}, Event ID : {state_dict["event_id"]}, Event type: {state_dict["event_type"]}, enter_pressed: {state_dict["enter_pressed"]}, space_pressed: {state_dict["space_pressed"]}, escape pressed: {state_dict["escape_pressed"]}')
+                data_log.save_data_dict(state_dict)
+
+                previous_time = current_time
+                logger.info(f'Current state: {state_dict["current_state"]}, Event ID : {state_dict["event_id"]}, Event type: {state_dict["event_type"]}, enter_pressed: {state_dict["enter_pressed"]}, space_pressed: {state_dict["space_pressed"]}, escape pressed: {state_dict["escape_pressed"]}, timestamp: {state_dict["timestamp"]}')
     
     except Exception as e:
         logger.error(f"An error occurred during the experiment loop: {e}", exc_info=True)
