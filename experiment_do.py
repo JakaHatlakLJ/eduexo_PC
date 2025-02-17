@@ -29,6 +29,8 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["total_trials"] = experiment_config["experiment"]["total_trials"]
     state_dict["data_stream_interval"] = experiment_config["experiment"]["data_stream_interval"]
     state_dict["event_stream_interval"] = experiment_config["experiment"]["event_stream_interval"]
+    state_dict["imagination_time"] = experiment_config["experiment"]["imagination_time"]
+    state_dict["intention_time"] = experiment_config["experiment"]["intention_time"]
 
     state_dict["experiment_start"] = -1
 
@@ -38,6 +40,7 @@ def initialize_state_dict(state_dict, experiment_config):
     
     state_dict["stream_online"] = True
 
+    state_dict["trial"] = ""
     state_dict["event_id"] = 99
     state_dict["event_type"] = ""
     state_dict["current_trial_No"] = 0
@@ -51,6 +54,7 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["needs_update"] = False
 
     state_dict["background_color"] = "black"
+    state_dict["color"] = "white"
      
     return state_dict
 
@@ -191,7 +195,7 @@ if __name__ == "__main__":
             data_log.save_data_dict(state_dict)
             data_log.frequency_log(state_dict)
 
-            # logger.info(f'Current state: {state_dict["current_state"]}, Event ID : {state_dict["event_id"]}, Event type: {state_dict["event_type"]}, enter_pressed: {state_dict["enter_pressed"]}, space_pressed: {state_dict["space_pressed"]}, escape pressed: {state_dict["escape_pressed"]}')
+            # logger.info(f'Current state: {state_dict["current_state"]}, Trial : {state_dict["trial"]}, Event ID : {state_dict["event_id"]}, Event type: {state_dict["event_type"]}, trial in progress : {state_dict["trial_in_progress"]}')
     
     except Exception as e:
         logger.error(f"An error occurred during the experiment loop: {e}", exc_info=True)

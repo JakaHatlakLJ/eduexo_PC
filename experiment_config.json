@@ -10,10 +10,13 @@
         "total_trials": 0,
         "data_stream_interval": 0.01,
         "event_stream_interval": 5,
-        "results_path": "./experiment_results",
-        "frequency_path": "./frequency_data",
+        "loop_frequency": 200,
+        "imagination_time": 5,
+        "intention_time": 2,
+        "decoder_enable": 0,
         "save_data": 0,
-        "loop_frequency": 200
+        "results_path": "./experiment_results",
+        "frequency_path": "./frequency_data"
     },
     "participant": {
         "age": 22,

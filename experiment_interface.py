@@ -1,5 +1,5 @@
 import pygame
-from pylsl import StreamInlet, resolve_stream, resolve_byprop
+from pylsl import StreamInlet, resolve_streams, resolve_byprop
 
 class Interface:
     """
@@ -32,15 +32,13 @@ class Interface:
 
         #### CREATE DIFFERENT FONTS
         self.font = pygame.font.SysFont('Arial', 48)    # Select font and size
-        self.font2 = pygame.font.SysFont('Arial', 100)
+        self.font2 = pygame.font.SysFont('Arial', 100, bold=True)
         self.font3 = pygame.font.SysFont('Arial', 24)
         self.font4 = pygame.font.SysFont('Arial', 24, bold=True)
 
         #### CREATE ALL STATIC TEXTs
         self.UP_text = self._create_static_text(text="UP", y_position=self.offset + self.pas/2, font=1)                                         # Upper band text
         self.DOWN_text = self._create_static_text(text="DOWN", y_position=self.height - self.offset - self.pas/2, font=1)                       # Lower band text
-        self.UP_sign = self._create_static_text(text="UP", font=2)                                                                              # UP instruction text
-        self.DOWN_sign = self._create_static_text(text="DOWN", font=2)                                                                          # DOWN instruction text    
         self.current_trial_text = self._create_static_text(text='Current Trial', x_position=0.1*self.width, y_position=0.45*self.height)        # Current trial text
         self.remaining_time_text = self._create_static_text(text='Remaining Time', x_position=0.88*self.width, y_position=0.45*self.height)     # Remaining time text
 
@@ -48,7 +46,7 @@ class Interface:
         """
         pulls LSL sample and updates state_dict values related to current position of eduexo
         """
-        self.inlet.flush()
+        self.inlet.flush()  
         self.sample, _ = self.inlet.pull_sample(timeout=1)
         
         if self.sample is None:
@@ -111,16 +109,16 @@ class Interface:
         if self.state_dict["is_UP"] or self.state_dict["is_DOWN"]:
             self.in_band = True
 
-        #### INITIAL SCREEN
+        #### INITIAL SCREEN STATE
         if self.state_dict["current_state"] == "INITIAL_SCREEN":
             self._draw_dynamic_text(text=self.state_dict["main_text"], font=1)
 
-        #### PAUSE SCREEN
+        #### PAUSE STATE
         elif self.state_dict["current_state"] == "PAUSE":
             self.screen.fill("darkorange3")
             self._draw_dynamic_text(text="Paused. Press SPACE to continue.", font=1)
 
-        #### EXIT, TERMINATION OR STREAM DISCONNECTION SCREENS
+        #### EXIT, TERMINATION OR STREAM DISCONNECTION STATES
         elif self.state_dict["current_state"] == "EXIT":
             if self.state_dict["avg_time"] == None:
                 self._draw_dynamic_text(text=self.state_dict["main_text"], y_position=0.45*self.height, font=1)     # Status text
@@ -141,29 +139,31 @@ class Interface:
                 self._draw_dynamic_text(text=number, x_position=0.36*self.width, y_position=0.6*self.height)                                    # Successfulness results
 
         #### ALL THE OTHER STATES
+        
+        #### BAND COLORING
         else:
             p11 = pygame.Vector2(0, self.offset + self.pas/2)
             p12 = pygame.Vector2(self.width, self.offset + self.pas/2)
-            if self.state_dict["current_state"] in {"GO_TO_UPPER_BAND", "IN_UPPER_BAND"}:
+            if self.state_dict["trial"] == "UP":
                 if self.state_dict["is_UP"]:
                     color = "green"    
                 elif self.state_dict["is_DOWN"]:
                     color = "red"    
-                elif keys[pygame.K_UP] or self.state_dict["trial_in_progress"] and not self.in_band: 
-                    color = "orange"
+                elif keys[pygame.K_UP] or self.state_dict["trial_in_progress"] and not self.in_band and self.state_dict["current_state"] != "WAITING": 
+                    color = self.state_dict["color"]
                 else:
                     color = "black"
                 pygame.draw.line(self.screen, color, p11, p12, width = self.pas)
 
             p21 = pygame.Vector2(0, self.height - self.offset - self.pas/2)
             p22 = pygame.Vector2(self.width, self.height - self.offset - self.pas/2)
-            if self.state_dict["current_state"] in {"GO_TO_LOWER_BAND", "IN_LOWER_BAND"}:
+            if self.state_dict["trial"] == "DOWN":
                 if self.state_dict["is_DOWN"]:
                     color = "green"    
                 elif self.state_dict["is_UP"]:
                     color = "red"    
-                elif keys[pygame.K_DOWN] or self.state_dict["trial_in_progress"] and not self.in_band:
-                    color = "orange"          
+                elif keys[pygame.K_DOWN] or self.state_dict["trial_in_progress"] and not self.in_band and self.state_dict["current_state"] != "WAITING":
+                    color = self.state_dict["color"]         
                 else:
                     color = "black"                    
                 pygame.draw.line(self.screen, color, p21, p22, width = self.pas)
@@ -193,14 +193,16 @@ class Interface:
             self.screen.blit(*self.remaining_time_text)
 
             #### DRAW INSTRUCTIONS WHILE TRAIL IS IN PROGRESS
+            UP_sign = self._create_static_text(text="UP", color=self.state_dict["color"], font=2, y_position=0.4*self.height)                                                           # UP instruction text
+            DOWN_sign = self._create_static_text(text="DOWN", color=self.state_dict["color"], font=2, y_position=0.6*self.height)                                                       # DOWN instruction text    
             if not self.in_band:
-                if (keys[pygame.K_UP] or self.state_dict["event_type"] == "UP") and self.state_dict["trial_in_progress"]:
-                    self.screen.blit(*self.UP_sign)
-                elif (keys[pygame.K_DOWN] or self.state_dict["event_type"] == "DOWN") and self.state_dict["trial_in_progress"]:
-                    self.screen.blit(*self.DOWN_sign)
+                if (keys[pygame.K_UP] or self.state_dict["trial"] == "UP") and self.state_dict["trial_in_progress"]:
+                    self.screen.blit(*UP_sign)
+                elif (keys[pygame.K_DOWN] or self.state_dict["trial"] == "DOWN") and self.state_dict["trial_in_progress"]:
+                    self.screen.blit(*DOWN_sign)
             
-            #### RETURN TO CENTER TEXT
-            if self.state_dict["current_state"] in {"RETURN_TO_CENTER", "IN_MIDDLE_CIRCLE"}:
+            #### RETURN TO CENTER TEXT AND TARGET CIRCLE
+            if self.state_dict["current_state"] in {"RETURN_TO_CENTER", "IN_MIDDLE_CIRCLE", "WAITING", "IMAGINATION", "INTENTION"}:
                 self._draw_dynamic_text(text=self.state_dict["main_text"], color="white", y_position=0.4*self.height, font=1)        
                 pygame.draw.circle(self.screen, "white", (self.width/2, self.height/2), 17, width= 2)              
                 if self.state_dict["in_the_middle"]:
@@ -213,6 +215,11 @@ class Interface:
             #### FAILED TRIAL SIGN
             elif self.state_dict["current_state"] in {"TIMEOUT", "FAILURE"}:
                 self._draw_dynamic_text(text=self.state_dict["main_text"], color="red", font=1)
+
+            #### X in the middle of the screen
+            else:
+                if not self.state_dict["in_the_middle"]:
+                    self._draw_dynamic_text(text="X", x_position=self.width/2, y_position=self.height/2, font=3)
 
             #### DRAW THE MAIN DOT AT THE END
             pygame.draw.circle(self.screen, "white", dot_pos, 10)

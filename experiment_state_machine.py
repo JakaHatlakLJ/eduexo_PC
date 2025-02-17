@@ -16,10 +16,12 @@ class StateMachine:
     """
     EVENT IDS vs EVEN TYPES:\n
     99 - nothing\n
-    10 - prompt "UP" shown\n
-    11 - user started moving during "UP" trial\n
-    20 - prompt "DOWN" shown\n
-    21 - user started moving during "DOWN" trial\n
+    10 - prompt "UP" shown (RED): IMAGINE "UP"\n
+    11 - prompt "UP" changed (Yellow): INTEND "UP"\n
+    12 - prompt "UP" changed (Green): EXECUTE "UP"\n
+    20 - prompt "DOWN" shown (RED): IMAGINE "DOWN"\n
+    21 - prompt "DOWN" changed (Yellow): INTEND "DOWN"\n
+    22 - prompt "DOWN" changed (Green): EXECUTE "DOWN"\n
     30 - successful trial\n
     40 - failed trial\n
     50 - trial timeout\n
@@ -29,19 +31,22 @@ class StateMachine:
     
     RETURN_TO_CENTER = 1
     IN_MIDDLE_CIRCLE = 2
+    WAITING = 3
+    IMAGINATION = 4
+    INTENTION = 5
 
-    GO_TO_UPPER_BAND = 3
-    IN_UPPER_BAND = 4
-    GO_OUT_OF_UPPER_BAND = 5
+    GO_TO_UPPER_BAND = 6
+    IN_UPPER_BAND = 7
+    GO_OUT_OF_UPPER_BAND = 8
 
-    GO_TO_LOWER_BAND = 6
-    IN_LOWER_BAND = 7
-    GO_OUT_OF_LOWER_BAND = 8
+    GO_TO_LOWER_BAND = 9
+    IN_LOWER_BAND = 10
+    GO_OUT_OF_LOWER_BAND = 11
 
-    FAILURE = 9
-    TIMEOUT = 10
-    PAUSE = 11
-    EXIT = 12
+    FAILURE = 12
+    TIMEOUT = 13
+    PAUSE = 14
+    EXIT = 15
     
     def __init__(self, trial_No = 4):
         self.current_state = None
@@ -87,27 +92,57 @@ class StateMachine:
                 self.set_return_to_center(state_dict)
             elif time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 if self.i < len(self.events):
+                    self.current_state = StateMachine.WAITING
                     if self.events[self.i] == 1:
-                        state_dict["event_id"] = 10
-                        state_dict["event_type"] = "UP"
+                        state_dict["trial"] = "UP"
                         state_dict["current_trial_No"] = self.i + 1
-                        self.current_state = StateMachine.GO_TO_UPPER_BAND
-                        self.set_go_to_band(state_dict)
+                        self.set_waiting(state_dict)
                         self.i += 1
                     else:
-                        state_dict["event_type"] = "DOWN"
-                        state_dict["event_id"] = 20
+                        state_dict["trial"] = "DOWN"
                         state_dict["current_trial_No"] = self.i + 1
-                        self.current_state = StateMachine.GO_TO_LOWER_BAND
-                        self.set_go_to_band(state_dict)
+                        self.set_waiting(state_dict)
                         self.i += 1
+
+        #### WHEN WAITING FOR START
+        elif self.current_state == StateMachine.WAITING:
+            if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
+                if state_dict["trial"] == "UP":
+                    state_dict["event_id"] = 10
+                    state_dict["event_type"] = "imagine_UP"
+                else:
+                    state_dict["event_type"] = "imagine_DOWN"
+                    state_dict["event_id"] = 20
+                self.current_state = StateMachine.IMAGINATION
+                self.set_imagine(state_dict)
+
+        #### WHEN IMAGINING MOVEMENT
+        elif self.current_state == StateMachine.IMAGINATION:
+            if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
+                if state_dict["trial"] == "UP":
+                    state_dict["event_type"] = "intend_UP"
+                    state_dict["event_id"] = 11
+                else:
+                    state_dict["event_type"] = "intend_DOWN"
+                    state_dict["event_id"] = 21
+                self.current_state = StateMachine.INTENTION
+                self.set_intend(state_dict)
+
+        #### WHEN INTENDING MOVEMENT
+        elif self.current_state == StateMachine.INTENTION:
+            if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
+                if state_dict["trial"] == "UP":
+                    self.current_state = StateMachine.GO_TO_UPPER_BAND
+                    state_dict["event_type"] = "execute_UP"
+                    state_dict["event_id"] = 12
+                else:
+                    self.current_state = StateMachine.GO_TO_LOWER_BAND
+                    state_dict["event_type"] = "execute_DOWN"
+                    state_dict["event_id"] = 22
+                self.set_go_to_band(state_dict)
 
         #### WHEN "UP" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_UPPER_BAND:
-            # state_dict["event_id"] = 99                                         # RESET event_id back to 99 after triggering it one time
-            if state_dict["in_the_middle"] is False:
-                state_dict["event_type"] = "m_UP"
-                state_dict["event_id"] = 11
             if state_dict["is_UP"]:
                 self.current_state = StateMachine.IN_UPPER_BAND
                 self.set_in_upper_band(state_dict)
@@ -130,10 +165,6 @@ class StateMachine:
 
         #### WHEN "DOWN" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_LOWER_BAND:
-            # state_dict["event_id"] = 99                                     # RESET event_id back to 99 after triggering it one time
-            if state_dict["in_the_middle"] is False:
-                state_dict["event_type"] = "m_DOWN"
-                state_dict["event_id"] = 21
             if state_dict["is_DOWN"]:
                 self.current_state = StateMachine.IN_LOWER_BAND
                 self.set_in_lower_band(state_dict)
@@ -169,8 +200,11 @@ class StateMachine:
         #### PAUSE
         if state_dict["space_pressed"] and not self.current_state == StateMachine.EXIT:
             if self.current_state != StateMachine.PAUSE:
-                if state_dict["trial_in_progress"]:
+                if state_dict["trial_in_progress"] and self.current_state in {StateMachine.GO_TO_UPPER_BAND, StateMachine.GO_TO_LOWER_BAND}:
                     state_dict["timeout"] = state_dict["remaining_time"]
+                self.previous_trial = state_dict["trial"]
+                self.previous_event_id = state_dict["event_id"]
+                self.previous_event_type = state_dict["event_type"]
                 state_dict["event_id"] = 99
                 state_dict["event_type"] = ""
                 self.previous_state = self.current_state
@@ -186,6 +220,10 @@ class StateMachine:
                     self.current_state = self.previous_state
                 state_dict["trial_time"] = time()
                 state_dict["state_start_time"] = time()
+                state_dict["trial"] = self.previous_trial
+                state_dict["event_id"] = self.previous_event_id
+                state_dict["event_type"] = self.previous_event_type
+                state_dict["trial_in_progress"] = True
 
         #### WHEN EXITING
         if self.current_state == StateMachine.EXIT and state_dict["stream_online"] == True:
@@ -211,15 +249,16 @@ class StateMachine:
 
 
         #### WHILE TRIAL IS IN PROGRESS
-        if self.current_state in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND}:
-            # if state_dict["event_id"] in {11, 21}:
-            #     state_dict["event_id"] = 99                                                                         # RESET event_id to 99 after moving out of target
-            state_dict["remaining_time"] = round(state_dict["timeout"] - (time() - state_dict["trial_time"]), 1)
+        if self.current_state in {StateMachine.WAITING, StateMachine.IMAGINATION, StateMachine.INTENTION, StateMachine.GO_TO_UPPER_BAND, StateMachine.GO_TO_LOWER_BAND}:
             state_dict["trial_in_progress"] = True
-            if state_dict["remaining_time"] <= 0:
-                self.current_state = StateMachine.TIMEOUT
-                self.set_trial_timeout(state_dict)
+            if self.current_state in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND}:
+                state_dict["remaining_time"] = round(state_dict["timeout"] - (time() - state_dict["trial_time"]), 1)
+                if state_dict["remaining_time"] <= 0:
+                    self.current_state = StateMachine.TIMEOUT
+                    self.set_trial_timeout(state_dict)
         else:
+            if self.current_state not in {StateMachine.IN_UPPER_BAND, StateMachine.IN_LOWER_BAND}:
+                state_dict["trial"] = ""
             state_dict["trial_in_progress"] = False
             state_dict["remaining_time"] = ""
 
@@ -261,9 +300,24 @@ class StateMachine:
 
     def set_in_middle_circle(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = np.random.uniform(*state_dict["state_wait_time_range"]) # s
+        state_dict["state_wait_time"] = 1.5 # s
         state_dict["main_text"] = ""
     
+    def set_waiting(self, state_dict):
+        state_dict["state_start_time"] = time()
+        state_dict["state_wait_time"] = np.random.uniform(*state_dict["state_wait_time_range"]) # s
+        state_dict["color"] = "white"
+
+    def set_imagine(self, state_dict):
+        state_dict["state_start_time"] = time()
+        state_dict["state_wait_time"] = state_dict["imagination_time"]
+        state_dict["color"] = "red"
+
+    def set_intend(self, state_dict):
+        state_dict["state_start_time"] = time()
+        state_dict["state_wait_time"] = state_dict["intention_time"]
+        state_dict["color"] = "yellow"
+
     def set_in_upper_band(self, state_dict):
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = 1
@@ -276,6 +330,7 @@ class StateMachine:
 
     def set_go_to_band(self, state_dict):
         state_dict["trial_time"] = time()
+        state_dict["color"] = "green3"
         
     def set_success(self, state_dict):
         state_dict["event_type"] = "SUCCESS"
