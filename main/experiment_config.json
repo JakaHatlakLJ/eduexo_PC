@@ -1,0 +1,25 @@
+{
+    "experiment": {
+        "number_of_trials": 2,
+        "state_wait_time_range": [1, 3],
+        "trial_timeout": 3,
+        "screen_width": 1580,
+        "screen_height": 950,
+        "maximum_arm_position_deg": 180,
+        "minimum_arm_position_deg": 55,
+        "data_stream_interval": 0.01,
+        "loop_frequency": 200,
+        "imagination_time": 5,
+        "intention_time": 2,
+        "decoder_enable": 0,
+        "decoder_probability": 0.7,
+        "save_data": 0,
+        "results_path": "./experiment_results",
+        "frequency_path": "./frequency_data"
+    },
+    "participant": {
+        "age": 22,
+        "id": 1,
+        "name": "Jaka"
+    }
+}
