@@ -2,28 +2,83 @@ from pylsl import StreamInfo, StreamOutlet
 import time
 import random
 
-# Create a new stream info
-info1 = StreamInfo('MyStream1', 'EEG', 2, 100, 'float32', 'test_LSL1')
-# info2 = StreamInfo('MyStream2', 'EEG_KD', 2, 100, 'float32', 'test_LSL2')
+pos_tor = False
 
-# Create an outlet
-outlet1 = StreamOutlet(info1)
-# outlet2 = StreamOutlet(info2)
+if not pos_tor:
+    dir_corr = True
 
-print("Now sending data...")
-while True:
-    p = input('pos (value between 0 - 1): ')
-    t = input('tor (value between 0 - 0.2 [Nm]): ')
+if pos_tor:
+    # Create a new stream info
+    info1 = StreamInfo(
+        'EXOInstructions',       # name
+        'Instructions',          # type
+        3,                       # channel_count
+        0,                       # nominal rate=0 for irregular streams
+        'float32',                # channel format
+        'Eduexo_PC'              # source_id
+    )
+    # info2 = StreamInfo('MyStream2', 'EEG_KD', 2, 100, 'float32', 'test_LSL2')
 
-    if p:
-        pos = p
-    else:
-        pos = 0
+    # Create an outlet
+    outlet1 = StreamOutlet(info1)
+    # outlet2 = StreamOutlet(info2)
 
-    if  t:
-        tor = t
-    else:
-        tor = 0
+    print("Now sending data...")
 
-    outlet1.push_sample([float(pos), float(tor)])
-    # outlet2.push_sample([random.random()])
+    while True:
+        p = input('pos (value between 0 - 10): ')
+        t = input('tor (value between 0 - 200 [mNm]): ')
+
+        if p:
+            pos = p
+        else:
+            pos = 0
+
+        if  t:
+            tor = t
+        else:
+            tor = 0
+
+        outlet1.push_sample([float(pos) / 10, float(tor) / 1000])
+        # outlet2.push_sample([random.random()])
+
+else:
+    # Create a new stream info
+    info1 = StreamInfo(
+        'EXOInstructions',       # name
+        'Instructions',          # type
+        3,                       # channel_count
+        0,                       # nominal rate=0 for irregular streams
+        'float32',                # channel format
+        'Eduexo_PC'              # source_id
+    )
+    # Create an outlet
+    outlet1 = StreamOutlet(info1)
+
+    print("Now sending data...")
+
+    while True:
+        torque_p = input('torque profile (value between 0 - 4): ')
+        direction = input('direction (10 : UP, 20 : DOWN): ')
+        corr = input('correctness (0/1): ')
+
+        if torque_p:
+            tor = torque_p
+        else:
+            tor = 1
+
+        if  direction:
+            dir = direction
+        else:
+            dir = 20
+
+        if corr:
+            correctness = corr
+        else:
+            correctness = 1
+
+        DATA = [tor, dir, correctness]
+        DATA = [int(i) for i in DATA]
+        outlet1.push_sample(DATA)
+        print(DATA)
+        
