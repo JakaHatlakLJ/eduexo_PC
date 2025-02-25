@@ -1,7 +1,10 @@
 {
     "experiment": {
         "number_of_trials": 2,
-        "state_wait_time_range": [1, 3],
+        "number_of_control_trials": 0,
+        "state_wait_time_range": [1, 1],
+        "imagination_time_range": [5, 5],
+        "intention_time_range": [2, 3],
         "trial_timeout": 3,
         "screen_width": 1580,
         "screen_height": 950,
@@ -9,8 +12,6 @@
         "minimum_arm_position_deg": 55,
         "data_stream_interval": 0.01,
         "loop_frequency": 200,
-        "imagination_time": 5,
-        "intention_time": 2,
         "decoder_enable": 0,
         "decoder_probability": 0.7,
         "save_data": 0,

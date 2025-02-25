@@ -22,21 +22,25 @@ class StateMachine:
     20 - prompt "DOWN" shown (RED): IMAGINE "DOWN"\n
     21 - prompt "DOWN" changed (Yellow): INTEND "DOWN"\n
     22 - prompt "DOWN" changed (Green): EXECUTE "DOWN"\n
-    30 - successful trial\n
-    40 - failed trial\n
-    50 - trial timeout\n
+    30 - exo execution correct\n
+    40 - exo execution incorrect\n
+    50 - success\n
+    60 - failure\n
+    70 - timeout
     """
     
-    no_event            = 99
-    imagine_UP          = 10
-    intend_UP           = 11
-    execute_UP          = 12
-    imagine_DOWN        = 20
-    intend_DOWN         = 21
-    execute_DOWN        = 22
-    success             = 30
-    failure             = 40
-    timeout             = 50
+    no_event                    = 99
+    imagine_UP                  = 10
+    intend_UP                   = 11
+    execute_UP                  = 12
+    imagine_DOWN                = 20
+    intend_DOWN                 = 21
+    execute_DOWN                = 22
+    exo_execution_correct       = 30
+    exo_execution_incorrect     = 40
+    success                     = 50
+    failure                     = 60
+    timeout                     = 70
     
     INITIAL_SCREEN = 0
     
@@ -59,18 +63,24 @@ class StateMachine:
     PAUSE = 14
     EXIT = 15
 
-    def __init__(self, trial_No = 4):
+    def __init__(self, trial_No = 10, control_trial_No = 2):
         self.current_state = None
 
         self.trial_No = trial_No
+        self.control_trial_No = control_trial_No
         self.i = 0
         self.times = []
+        self.correctness = None
         
         # construct reverse state lookup
         all_variables = vars(StateMachine)
         self.reverse_state_lookup = {all_variables[name]: name for name in all_variables if isinstance(all_variables[name], int) and name.isupper()}
+
+    def synthetic_decoder(self):
+        self.torque_profile = np.random.choice(a=[0, 1, 2, 3, 4],p=[0, 0.8, 0, 0.2, 0])
+        self.correctness = np.random.choice(a=[0, 1],p=[0.3, 0.7])
     
-    def maybe_update_state(self, state_dict):
+    def maybe_update_state(self, state_dict, exo_stream_out):
         experiment_over = False  
 
         self.one_time_ENTER(state_dict) # One time ENTER trigger
@@ -150,6 +160,9 @@ class StateMachine:
                     state_dict["event_type"] = "execute_DOWN"
                     state_dict["event_id"] = StateMachine.execute_DOWN
                 self.set_go_to_band(state_dict)
+                if state_dict["activate_EXO"]:
+                    self.synthetic_decoder()
+                    exo_stream_out(state_dict, self.torque_profile, self.correctness)
 
         #### WHEN "UP" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_UPPER_BAND:
@@ -262,7 +275,16 @@ class StateMachine:
         if self.current_state in {StateMachine.WAITING, StateMachine.IMAGINATION, StateMachine.INTENTION, StateMachine.GO_TO_UPPER_BAND, StateMachine.GO_TO_LOWER_BAND}:
             state_dict["trial_in_progress"] = True
             if self.current_state in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND}:
+                if state_dict["exo_execution"] == 1:
+                    if self.correctness == 1:
+                        state_dict["event_id"] = StateMachine.exo_execution_correct
+                        state_dict["event_type"] = "exo_execution_correct"
+                    else:
+                        state_dict["event_id"] = StateMachine.exo_execution_incorrect
+                        state_dict["event_type"] = "exo_execution_incorrect"
+
                 state_dict["remaining_time"] = round(state_dict["timeout"] - (time() - state_dict["trial_time"]), 1)
+
                 if state_dict["remaining_time"] <= 0:
                     self.current_state = StateMachine.TIMEOUT
                     self.set_trial_timeout(state_dict)
@@ -271,12 +293,18 @@ class StateMachine:
                 state_dict["trial"] = ""
             state_dict["trial_in_progress"] = False
             state_dict["remaining_time"] = ""
+            state_dict["torque_profile"] = "None"
 
 
         if self.current_state is not None:
             state_dict["current_state"] = self.reverse_state_lookup[self.current_state]             
         else:
             state_dict["current_state"] = "None"
+
+        if  self.control_trial_No + 1 <= self.i < self.trial_No + self.control_trial_No:
+            state_dict["activate_EXO"] = True
+        else:
+            state_dict["activate_EXO"] = False
 
         if self.current_state == StateMachine.RETURN_TO_CENTER:
             state_dict["event_id"] = StateMachine.no_event
@@ -298,10 +326,29 @@ class StateMachine:
         state_dict["main_text"] = ""
         state_dict["background_color"] = "black"
 
-        ones = np.ones(int(self.trial_No/2))
-        zeros = np.zeros(int(self.trial_No/2))
-        self.events = np.append(ones, zeros)
-        random.shuffle(self.events) # quasi-random events
+        self.events = []  # Keep this as a list
+
+        # First set of events
+        ones = np.ones(int(self.control_trial_No / 2))
+        zeros = np.zeros(int(self.control_trial_No / 2))
+        events = np.append(ones, zeros)
+        random.shuffle(events)  # Quasi-random events
+        self.events.extend(events.tolist())  # Convert to list before extending
+
+        # Second set of events
+        ones = np.ones(int(self.trial_No / 2))
+        zeros = np.zeros(int(self.trial_No / 2))
+        events = np.append(ones, zeros)
+        random.shuffle(events)  # Quasi-random events
+        self.events.extend(events.tolist())
+
+        # Third set of events
+        ones = np.ones(int(self.control_trial_No / 2))
+        zeros = np.zeros(int(self.control_trial_No / 2))
+        events = np.append(ones, zeros)
+        random.shuffle(events)  # Quasi-random events
+        self.events.extend(events.tolist())
+
 
     def set_return_to_center(self, state_dict):
         state_dict["state_start_time"] = None
@@ -320,12 +367,12 @@ class StateMachine:
 
     def set_imagine(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = state_dict["imagination_time"]
+        state_dict["state_wait_time"] = np.random.uniform(*state_dict["imagination_time_range"]) # s
         state_dict["color"] = "red"
 
     def set_intend(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = state_dict["intention_time"]
+        state_dict["state_wait_time"] = np.random.uniform(*state_dict["intention_time_range"]) # s
         state_dict["color"] = "yellow"
 
     def set_in_upper_band(self, state_dict):

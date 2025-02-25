@@ -1,5 +1,6 @@
 import pygame
 from pylsl import StreamInlet, resolve_streams, resolve_byprop
+from experiment_LSL import LSLHandler
 
 class Interface:
     """
@@ -22,6 +23,7 @@ class Interface:
         self.minP = minP
 
         self.state_dict = state_dict
+        self.total_trials = state_dict["trials_No"] + 2 * state_dict["control_trials_No"]
 
         self.inlet = inlet
 
@@ -42,23 +44,17 @@ class Interface:
         self.current_trial_text = self._create_static_text(text='Current Trial', x_position=0.1*self.width, y_position=0.45*self.height)        # Current trial text
         self.remaining_time_text = self._create_static_text(text='Remaining Time', x_position=0.88*self.width, y_position=0.45*self.height)     # Remaining time text
 
-    def update(self):
+    def update(self, state_dict):
         """
         pulls LSL sample and updates state_dict values related to current position of eduexo
         """
-        self.inlet.flush()  
-        self.sample, _ = self.inlet.pull_sample(timeout=1)
-        
-        if self.sample is None:
-            self.sample = [(self.maxP - self.minP)/2 + self.minP]
-            self.state_dict["stream_online"] = False
-        else:
-            self.state_dict["stream_online"] = True
-            self.state_dict["current_position"] = round(self.sample[0], 5)
-            self.state_dict["current_velocity"] = round(self.sample[1], 5)
-            self.state_dict["current_torque"] = round(self.sample[2], 5)
+        self.state_dict = state_dict
 
-        loc = self.sample[0]
+        if self.state_dict["current_position"] is None:
+            loc = (self.maxP - self.minP)/2 + self.minP
+        else:
+            loc = self.state_dict["current_position"]
+
         self.loc = (loc / (self.maxP - self.minP) - self.minP / (self.maxP - self.minP)) * (self.height-2*self.offset) + self.offset        # linear transformation of EXO angle to dot position on screen
 
         if self.loc < self.height/2 + 3 and self.loc > self.height/2 - 3:
@@ -82,15 +78,6 @@ class Interface:
             self.state_dict["on_the_move"] = True
 
         return pygame.Vector2(self.width/2,  self.loc)
-    
-    @staticmethod
-    def lsl_stream():
-        streams = resolve_byprop('type', 'EXO', timeout= 5)
-        if not streams:
-            raise RuntimeError(f"No LSL stream found of type: 'EXO'")
-        inlet = StreamInlet(streams[0])
-        print("Receiving data...")
-        return inlet
     
     def draw(self, dot_pos):
         """
@@ -126,10 +113,10 @@ class Interface:
             else:
                 if self.state_dict["avg_time"] == 0:
                     time = "-- sec"
-                    number = f'0/{str(self.state_dict["Trials_No"])}'
+                    number = f'0/{str(self.total_trials)}'
                 else:
                     time = f'{str(self.state_dict["avg_time"])} sec'
-                    number =f'{str(self.state_dict["succ_trials"])}/{str(self.state_dict["Trials_No"])}'
+                    number =f'{str(self.state_dict["succ_trials"])}/{str(self.total_trials)}'
 
                 self._draw_dynamic_text(text=self.state_dict["main_text"], y_position=0.3*self.height, font=1)                                  # Status text
                 self._draw_dynamic_text(text=self.state_dict["sub_text"], x_position=self.width/2 - 10, y_position=0.4*self.height, font=4)     # Procedure instructions
@@ -184,7 +171,7 @@ class Interface:
             self._draw_dynamic_text(text=str(self.state_dict["remaining_time"]), x_position=0.88*self.width, y_position=0.55*self.height)
 
             #### DRAW TRIAL COUNTER
-            self._draw_dynamic_text(text=f'{str(self.state_dict["current_trial_No"])}/{str(self.state_dict["Trials_No"])}', x_position=0.1*self.width, y_position=0.55*self.height)
+            self._draw_dynamic_text(text=f'{str(self.state_dict["current_trial_No"])}/{str(self.total_trials)}', x_position=0.1*self.width, y_position=0.55*self.height)
 
             #### DRAW ALL CONSTANT TEXTs
             self.screen.blit(*self.UP_text)
@@ -222,7 +209,7 @@ class Interface:
             #### DRAW THE MAIN DOT AT THE END
             pygame.draw.circle(self.screen, "white", dot_pos, 10)
 
-    def run(self):
+    def run(self, state_dict):
         """
         Runs following functions in order:\n
         - Interface.update()\n
@@ -231,7 +218,7 @@ class Interface:
         Then checks if "X" button for quiting was pressed to terminate experiment
         """
 
-        dot_pos = self.update()
+        dot_pos = self.update(state_dict)
         self.draw(dot_pos)
 
         pygame.display.update()
@@ -313,18 +300,20 @@ if __name__ == "__main__":
     interface.state_dict["main_text"] = "Return to center"
     interface.state_dict["remaining_time"] = "3.0"
     interface.state_dict["current_trial_No"] = 3
-    interface.state_dict["Trials_No"] = 20
+    interface.state_dict["trials_No"] = 20
     interface.state_dict["trial"] = "UP"
     interface.state_dict["color"] = "yellow"
 
     interface.state_dict["sub_text"] = "testing Interface !?"
     interface.state_dict["avg_time"] = 0
 
+    LSL = LSLHandler(send=False)
 
     while interface.continue_experiment: 
         interface.state_dict["current_state"] = "IMAGINATION"
         if pygame.key.get_pressed()[pygame.K_UP] or pygame.key.get_pressed()[pygame.K_DOWN]:
             interface.state_dict["current_state"] = None
+        LSL.EXO_stream_in(interface.state_dict)
         interface.run()
         print(f' is_UP: {interface.state_dict["is_UP"]}, is_DOWN: {interface.state_dict["is_DOWN"]}, in_the_middle: {interface.state_dict["in_the_middle"]}, on_the_move: {interface.state_dict["on_the_move"]}, Current Position: {interface.state_dict["current_position"]}')
 
