@@ -57,7 +57,7 @@ class Interface:
 
         self.loc = (loc / (self.maxP - self.minP) - self.minP / (self.maxP - self.minP)) * (self.height-2*self.offset) + self.offset        # linear transformation of EXO angle to dot position on screen
 
-        if self.loc < self.height/2 + 3 and self.loc > self.height/2 - 3:
+        if self.loc < self.height/2 + 6 and self.loc > self.height/2 - 6:
             self.state_dict["in_the_middle"] = True
         else:
             self.state_dict["in_the_middle"] = False

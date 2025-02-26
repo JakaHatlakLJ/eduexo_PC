@@ -162,10 +162,11 @@ class StateMachine:
                 self.set_go_to_band(state_dict)
                 if state_dict["activate_EXO"]:
                     self.synthetic_decoder()
-                    exo_stream_out(state_dict, self.torque_profile, self.correctness)
 
         #### WHEN "UP" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_UPPER_BAND:
+            if state_dict["in_the_middle"] == False:
+                exo_stream_out(state_dict, self.torque_profile, self.correctness)
             if state_dict["is_UP"]:
                 self.current_state = StateMachine.IN_UPPER_BAND
                 self.set_in_upper_band(state_dict)
@@ -188,6 +189,8 @@ class StateMachine:
 
         #### WHEN "DOWN" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_LOWER_BAND:
+            if state_dict["in_the_middle"] == False:
+                exo_stream_out(state_dict, self.torque_profile, self.correctness)
             if state_dict["is_DOWN"]:
                 self.current_state = StateMachine.IN_LOWER_BAND
                 self.set_in_lower_band(state_dict)

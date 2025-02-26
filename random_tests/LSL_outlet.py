@@ -59,25 +59,25 @@ else:
 
     while True:
         torque_p = input('torque profile (value between 0 - 4): ')
-        direction = input('direction (10 : UP, 20 : DOWN): ')
         corr = input('correctness (0/1): ')
+        direction = input('direction (10 : UP, 20 : DOWN): ')
 
         if torque_p:
             tor = torque_p
         else:
             tor = 1
 
-        if  direction:
-            dir = direction
-        else:
-            dir = 20
-
         if corr:
             correctness = corr
         else:
             correctness = 1
 
-        DATA = [tor, dir, correctness]
+        if  direction:
+            dir = direction
+        else:
+            dir = 20
+
+        DATA = [tor, correctness, dir]
         DATA = [int(i) for i in DATA]
         outlet1.push_sample(DATA)
         print(DATA)
