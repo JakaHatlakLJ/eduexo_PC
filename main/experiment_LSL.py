@@ -102,7 +102,7 @@ class LSLHandler:
     def EXO_stream_in(self, state_dict):
         # Receive data from EXO
         self.inlet.flush()  
-        sample, _ = self.inlet.pull_sample(timeout=1)
+        sample, _ = self.inlet.pull_sample(timeout=2)
         
         if sample is None:
             state_dict["stream_online"] = False
@@ -127,8 +127,7 @@ class LSLHandler:
             else:
                 direction = 10
 
-        instructions_data = [torque_profile, correctness, direction]
-        instructions_data = [int(i) for i in instructions_data]
+        instructions_data = [int(torque_profile), int(correctness), int(direction)]
         self.outlet_EXO.push_sample(instructions_data)
 
         t_profile_dict = {0 : "trapezoid", 1 : "triangular", 2 : "sinusoide", 3 : "rectangular_pulse", 4 : "smoothed_trapezoid"}

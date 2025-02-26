@@ -1,6 +1,6 @@
 {
     "experiment": {
-        "number_of_trials": 2,
+        "number_of_trials": 20,
         "number_of_control_trials": 0,
         "state_wait_time_range": [1, 1],
         "imagination_time_range": [5, 5],
@@ -8,7 +8,7 @@
         "trial_timeout": 3,
         "screen_width": 1580,
         "screen_height": 950,
-        "maximum_arm_position_deg": 180,
+        "maximum_arm_position_deg": 165,
         "minimum_arm_position_deg": 55,
         "data_stream_interval": 0.01,
         "loop_frequency": 200,

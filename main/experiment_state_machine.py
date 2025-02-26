@@ -301,7 +301,7 @@ class StateMachine:
         else:
             state_dict["current_state"] = "None"
 
-        if  self.control_trial_No + 1 <= self.i < self.trial_No + self.control_trial_No:
+        if  self.control_trial_No < self.i <= self.trial_No + self.control_trial_No:
             state_dict["activate_EXO"] = True
         else:
             state_dict["activate_EXO"] = False
