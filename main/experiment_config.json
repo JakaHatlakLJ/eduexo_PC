@@ -1,13 +1,13 @@
 {
     "experiment": {
-        "number_of_trials": 20,
-        "number_of_control_trials": 0,
+        "number_of_trials": 200,
+        "number_of_control_trials": 10,
         "state_wait_time_range": [1, 1],
         "imagination_time_range": [5, 5],
         "intention_time_range": [2, 3],
         "trial_timeout": 3,
-        "screen_width": 1580,
-        "screen_height": 950,
+        "screen_width": 2000,
+        "screen_height": 1050,
         "maximum_arm_position_deg": 165,
         "minimum_arm_position_deg": 55,
         "data_stream_interval": 0.01,

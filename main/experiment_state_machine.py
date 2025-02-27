@@ -65,13 +65,13 @@ class StateMachine:
 
     def __init__(self, trial_No = 10, control_trial_No = 2):
         self.current_state = None
-
+        self.torque_profile = 0
         self.trial_No = trial_No
         self.control_trial_No = control_trial_No
         self.i = 0
         self.times = []
         self.correctness = None
-        
+        self.send_once = True        
         # construct reverse state lookup
         all_variables = vars(StateMachine)
         self.reverse_state_lookup = {all_variables[name]: name for name in all_variables if isinstance(all_variables[name], int) and name.isupper()}
@@ -150,6 +150,7 @@ class StateMachine:
 
         #### WHEN INTENDING MOVEMENT
         elif self.current_state == StateMachine.INTENTION:
+            self.send_once = True
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 if state_dict["trial"] == "UP":
                     self.current_state = StateMachine.GO_TO_UPPER_BAND
@@ -166,7 +167,10 @@ class StateMachine:
         #### WHEN "UP" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_UPPER_BAND:
             if state_dict["in_the_middle"] == False:
-                exo_stream_out(state_dict, self.torque_profile, self.correctness)
+                if state_dict["activate_EXO"]:
+                    if self.send_once:
+                        exo_stream_out(state_dict, self.torque_profile, self.correctness)
+                        self.send_once = False 
             if state_dict["is_UP"]:
                 self.current_state = StateMachine.IN_UPPER_BAND
                 self.set_in_upper_band(state_dict)
@@ -190,7 +194,10 @@ class StateMachine:
         #### WHEN "DOWN" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_LOWER_BAND:
             if state_dict["in_the_middle"] == False:
-                exo_stream_out(state_dict, self.torque_profile, self.correctness)
+                if state_dict["activate_EXO"]:
+                    if self.send_once:
+                        exo_stream_out(state_dict, self.torque_profile, self.correctness)
+                        self.send_once = False 
             if state_dict["is_DOWN"]:
                 self.current_state = StateMachine.IN_LOWER_BAND
                 self.set_in_lower_band(state_dict)

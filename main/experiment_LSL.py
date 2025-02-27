@@ -7,14 +7,6 @@ class LSLHandler:
 
     def __init__(self, logger, receive = True, send = True):
         self.logger = logger
-        
-        if receive:
-            # Resolve LSL stream for receiving EXO data and create an inlet
-            streams = resolve_byprop('type', 'EXO', timeout= 5)
-            if not streams:
-                raise RuntimeError(f"No LSL stream found of type: 'EXO'")
-            self.inlet = StreamInlet(streams[0])
-            logger.info("Receiving data from EXO...")
 
         if send:
             # Create LSL stream for sending instructions to EXO
@@ -40,6 +32,17 @@ class LSLHandler:
             )
             self.outlet_classifier = StreamOutlet(info_class)
             logger.info("Stream for events is online...")
+        
+        if receive:
+            # Resolve LSL stream for receiving EXO data and create an inlet
+            logger.info("Looking for LSL stream of type: 'EXO'...")
+            while True:
+                streams = resolve_byprop('type', 'EXO', timeout=10)
+                if streams:
+                    break
+                logger.warning("No LSL stream found of type: 'EXO'. Retrying...")
+            self.inlet = StreamInlet(streams[0])
+            logger.info("Receiving data from EXO...")
 
     def stream_events_data(self, stop_event, state_dict, the_lock):
         """
@@ -51,6 +54,7 @@ class LSLHandler:
         data_interval = state_dict["data_stream_interval"]          # how often we send 'data' samples
         last_data_time = perf_counter()
         old_event = 99
+        self.timestamp_g = local_clock()
 
         while not stop_event.is_set():
             try:
@@ -129,6 +133,7 @@ class LSLHandler:
 
         instructions_data = [int(torque_profile), int(correctness), int(direction)]
         self.outlet_EXO.push_sample(instructions_data)
+        # print(instructions_data)
 
         t_profile_dict = {0 : "trapezoid", 1 : "triangular", 2 : "sinusoide", 3 : "rectangular_pulse", 4 : "smoothed_trapezoid"}
 
