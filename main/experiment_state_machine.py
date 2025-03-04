@@ -1,20 +1,11 @@
 from time import time
 import numpy as np
 import random
-import numpy as np
 import pygame
-
-
-
-# Ta program skrbi za sledenje in določanje stanj v katerih se nahaja trial. vsi možni stati so definirani v StateMachine classu ki določa naslednje stanje in naslednji trial glede na kvazi slučajen seznam eventov.
-# State_dict beleži vse potrebne podatke za izris in beleženje stanj. ves cas se ga updata in bere iz njega. ugotovi kako ga uporabljati in spremeni
-
-# poleg tega programa potrebujes se enega za branje lsl streama in updatanje state_dicta ter za izrisovanje interfacea za preglednejšo kodo ustavri še program za izrisovanje interfacea in avtomatsko updatanje pozicij kroga
-
 
 class StateMachine:
     """
-    EVENT IDS vs EVEN TYPES:\n
+    EVENT IDS vs EVENT TYPES:\n
     99 - nothing\n
     10 - prompt "UP" shown (RED): IMAGINE "UP"\n
     11 - prompt "UP" changed (Yellow): INTEND "UP"\n
@@ -42,8 +33,10 @@ class StateMachine:
     failure                     = 60
     timeout                     = 70
     
+    # State IDs
     INITIAL_SCREEN = 0
-    
+
+
     RETURN_TO_CENTER = 1
     IN_MIDDLE_CIRCLE = 2
     WAITING = 3
@@ -53,7 +46,6 @@ class StateMachine:
     GO_TO_UPPER_BAND = 6
     IN_UPPER_BAND = 7
     GO_OUT_OF_UPPER_BAND = 8
-
     GO_TO_LOWER_BAND = 9
     IN_LOWER_BAND = 10
     GO_OUT_OF_LOWER_BAND = 11
@@ -63,29 +55,57 @@ class StateMachine:
     PAUSE = 14
     EXIT = 15
 
-    def __init__(self, trial_No = 10, control_trial_No = 2):
+    def __init__(self, trial_No=10, control_trial_No=2, correct_percentage=0.7):
         self.current_state = None
         self.torque_profile = 0
         self.trial_No = trial_No
         self.control_trial_No = control_trial_No
+        self.correct_percentage = correct_percentage
         self.i = 0
         self.times = []
         self.correctness = None
         self.send_once = True        
-        # construct reverse state lookup
+        # Construct reverse state lookup
         all_variables = vars(StateMachine)
         self.reverse_state_lookup = {all_variables[name]: name for name in all_variables if isinstance(all_variables[name], int) and name.isupper()}
-
-    def synthetic_decoder(self):
-        self.torque_profile = np.random.choice(a=[0, 1, 2, 3, 4],p=[0, 0.8, 0, 0.2, 0])
-        self.correctness = np.random.choice(a=[0, 1],p=[0.3, 0.7])
     
     def maybe_update_state(self, state_dict, exo_stream_out):
+        """
+        Updates the state of the experiment state machine based on the current state and state dictionary.
+        Args:
+            state_dict (dict): A dictionary containing the current state information and various flags.
+            exo_stream_out (function): A function to send data to the exoskeleton stream.
+        Returns:
+            tuple: A tuple containing a boolean indicating if the experiment is over and the updated state dictionary.
+        The state machine transitions through the following states:
+            - INITIAL_SCREEN: Initial screen state.
+            - RETURN_TO_CENTER: Waiting for the initial position.
+            - IN_MIDDLE_CIRCLE: Waiting in the middle for the trial to start.
+            - WAITING: Waiting for the start of the trial.
+            - IMAGINATION: Imagining movement.
+            - INTENTION: Intending movement.
+            - GO_TO_UPPER_BAND: Executing "UP" trial.
+            - IN_UPPER_BAND: "UP" trial successful.
+            - GO_TO_LOWER_BAND: Executing "DOWN" trial.
+            - IN_LOWER_BAND: "DOWN" trial successful.
+            - TIMEOUT: Timeout occurred.
+            - FAILURE: Failure occurred.
+            - PAUSE: Experiment paused.
+            - EXIT: Exiting the experiment.
+        The function handles various events and transitions, including:
+            - Enter key press to start the experiment.
+            - Space key press to pause/unpause the experiment.
+            - Escape key press to terminate the experiment.
+            - Stream online/offline status.
+            - Trial execution and success/failure handling.
+            - Timeout handling.
+        """
+
         experiment_over = False  
 
-        self.one_time_ENTER(state_dict) # One time ENTER trigger
-        self.one_time_ESCAPE(state_dict) # One time ESC trigger
-        self.latch_SPACE(state_dict) # SPACE latch
+        self.one_time_ENTER(state_dict)  # One time ENTER trigger
+        self.one_time_ESCAPE(state_dict)  # One time ESC trigger
+        self.latch_SPACE(state_dict)  # SPACE latch
 
         #### WHEN NONE
         if self.current_state is None:  
@@ -99,7 +119,7 @@ class StateMachine:
                 self.set_start_experiment(state_dict)
                 self.set_return_to_center(state_dict)
 
-        #### WHEN WAITING FOR INITAL POSITION
+        #### WHEN WAITING FOR INITIAL POSITION
         elif self.current_state == StateMachine.RETURN_TO_CENTER:
             if state_dict["in_the_middle"]:
                 self.current_state = StateMachine.IN_MIDDLE_CIRCLE
@@ -113,16 +133,18 @@ class StateMachine:
             elif time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 if self.i < len(self.events):
                     self.current_state = StateMachine.WAITING
+                    self.correctness = self.correctness_list[self.i]
+                    self.torque_profile = self.torque_profile_list[self.i]
                     if self.events[self.i] == 1:
+                        self.i += 1
                         state_dict["trial"] = "UP"
-                        state_dict["current_trial_No"] = self.i + 1
+                        state_dict["current_trial_No"] = self.i
                         self.set_waiting(state_dict)
-                        self.i += 1
                     else:
-                        state_dict["trial"] = "DOWN"
-                        state_dict["current_trial_No"] = self.i + 1
-                        self.set_waiting(state_dict)
                         self.i += 1
+                        state_dict["trial"] = "DOWN"
+                        state_dict["current_trial_No"] = self.i
+                        self.set_waiting(state_dict)
 
         #### WHEN WAITING FOR START
         elif self.current_state == StateMachine.WAITING:
@@ -161,8 +183,6 @@ class StateMachine:
                     state_dict["event_type"] = "execute_DOWN"
                     state_dict["event_id"] = StateMachine.execute_DOWN
                 self.set_go_to_band(state_dict)
-                if state_dict["activate_EXO"]:
-                    self.synthetic_decoder()
 
         #### WHEN "UP" TRIAL IS HAPPENING
         elif self.current_state == StateMachine.GO_TO_UPPER_BAND:
@@ -175,7 +195,7 @@ class StateMachine:
                 self.current_state = StateMachine.IN_UPPER_BAND
                 self.set_in_upper_band(state_dict)
                 self.set_success(state_dict)
-                self.times.append(state_dict["TO"]-state_dict["remaining_time"])
+                self.times.append(state_dict["TO"] - state_dict["remaining_time"])
             elif state_dict["is_DOWN"]:
                 self.current_state = StateMachine.FAILURE
                 self.set_failure(state_dict)  
@@ -188,7 +208,7 @@ class StateMachine:
                 if self.i == len(self.events):
                     self.current_state = StateMachine.EXIT
                     self.set_exit_or_error(state_dict)
-                    state_dict["avg_time"] = round(sum(self.times)/len(self.times), 2)
+                    state_dict["avg_time"] = round(sum(self.times) / len(self.times), 2)
                     state_dict["succ_trials"] = len(self.times)
 
         #### WHEN "DOWN" TRIAL IS HAPPENING
@@ -202,7 +222,7 @@ class StateMachine:
                 self.current_state = StateMachine.IN_LOWER_BAND
                 self.set_in_lower_band(state_dict)
                 self.set_success(state_dict)
-                self.times.append(state_dict["TO"]-state_dict["remaining_time"])
+                self.times.append(state_dict["TO"] - state_dict["remaining_time"])
             elif state_dict["is_UP"]:
                 self.current_state = StateMachine.FAILURE
                 self.set_failure(state_dict)                              
@@ -215,7 +235,7 @@ class StateMachine:
                 if self.i == len(self.events):
                     self.current_state = StateMachine.EXIT
                     self.set_exit_or_error(state_dict)              
-                    state_dict["avg_time"] = round(sum(self.times)/len(self.times), 2)
+                    state_dict["avg_time"] = round(sum(self.times) / len(self.times), 2)
                     state_dict["succ_trials"] = len(self.times)
 
         #### WHEN TIMEOUT OR FAILURE OCCUR
@@ -271,7 +291,7 @@ class StateMachine:
                 state_dict["avg_time"] = None
 
         #### FORCE TERMINATION
-        elif state_dict["escape_pressed"] == True :
+        elif state_dict["escape_pressed"] == True:
             self.current_state = StateMachine.EXIT
             self.set_exit_or_error(state_dict, "firebrick", "EXPERIMENT TERMINATED")
 
@@ -279,7 +299,6 @@ class StateMachine:
         if state_dict["stream_online"] == False:
             self.current_state = StateMachine.EXIT
             self.set_exit_or_error(state_dict, "firebrick", "STREAM OFFLINE", "Press ESC to exit or press ENTER when stream is online")
-
 
         #### WHILE TRIAL IS IN PROGRESS
         if self.current_state in {StateMachine.WAITING, StateMachine.IMAGINATION, StateMachine.INTENTION, StateMachine.GO_TO_UPPER_BAND, StateMachine.GO_TO_LOWER_BAND}:
@@ -305,13 +324,12 @@ class StateMachine:
             state_dict["remaining_time"] = ""
             state_dict["torque_profile"] = "None"
 
-
         if self.current_state is not None:
             state_dict["current_state"] = self.reverse_state_lookup[self.current_state]             
         else:
             state_dict["current_state"] = "None"
 
-        if  self.control_trial_No < self.i <= self.trial_No + self.control_trial_No:
+        if self.control_trial_No < self.i <= self.trial_No + self.control_trial_No:
             state_dict["activate_EXO"] = True
         else:
             state_dict["activate_EXO"] = False
@@ -336,29 +354,10 @@ class StateMachine:
         state_dict["main_text"] = ""
         state_dict["background_color"] = "black"
 
-        self.events = []  # Keep this as a list
-
-        # First set of events
-        ones = np.ones(int(self.control_trial_No / 2))
-        zeros = np.zeros(int(self.control_trial_No / 2))
-        events = np.append(ones, zeros)
-        random.shuffle(events)  # Quasi-random events
-        self.events.extend(events.tolist())  # Convert to list before extending
-
-        # Second set of events
-        ones = np.ones(int(self.trial_No / 2))
-        zeros = np.zeros(int(self.trial_No / 2))
-        events = np.append(ones, zeros)
-        random.shuffle(events)  # Quasi-random events
-        self.events.extend(events.tolist())
-
-        # Third set of events
-        ones = np.ones(int(self.control_trial_No / 2))
-        zeros = np.zeros(int(self.control_trial_No / 2))
-        events = np.append(ones, zeros)
-        random.shuffle(events)  # Quasi-random events
-        self.events.extend(events.tolist())
-
+        trial_rules = self.generate_trials(self.control_trial_No, self.trial_No, self.correct_percentage)
+        self.events = trial_rules[:, 0]
+        self.correctness_list = trial_rules[:, 1]
+        self.torque_profile_list = trial_rules[:, 2]
 
     def set_return_to_center(self, state_dict):
         state_dict["state_start_time"] = None
@@ -367,22 +366,22 @@ class StateMachine:
 
     def set_in_middle_circle(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = 1.5 # s
+        state_dict["state_wait_time"] = 1.5  # s
         state_dict["main_text"] = ""
     
     def set_waiting(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = np.random.uniform(*state_dict["state_wait_time_range"]) # s
+        state_dict["state_wait_time"] = np.random.uniform(*state_dict["state_wait_time_range"])  # s
         state_dict["color"] = "white"
 
     def set_imagine(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = np.random.uniform(*state_dict["imagination_time_range"]) # s
+        state_dict["state_wait_time"] = np.random.uniform(*state_dict["imagination_time_range"])  # s
         state_dict["color"] = "red"
 
     def set_intend(self, state_dict):
         state_dict["state_start_time"] = time()
-        state_dict["state_wait_time"] = np.random.uniform(*state_dict["intention_time_range"]) # s
+        state_dict["state_wait_time"] = np.random.uniform(*state_dict["intention_time_range"])  # s
         state_dict["color"] = "yellow"
 
     def set_in_upper_band(self, state_dict):
@@ -419,7 +418,7 @@ class StateMachine:
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = 0.5
 
-    def set_exit_or_error(self, state_dict, background_color = "green4", main_text = "EXPERIMENT FINISHED", sub_text = "Press ESC to exit or ENTER to restart."):
+    def set_exit_or_error(self, state_dict, background_color="green4", main_text="EXPERIMENT FINISHED", sub_text="Press ESC to exit or ENTER to restart."):
         state_dict["background_color"] = background_color
         state_dict["main_text"] = main_text 
         state_dict["sub_text"] = sub_text
@@ -448,3 +447,85 @@ class StateMachine:
         if current_space_state and not state_dict["previous_space_state"]:
             state_dict["space_pressed"] = not state_dict.get("space_pressed", False)
         state_dict["previous_space_state"] = current_space_state
+
+    @staticmethod
+    def generate_trials(control_trial_No, trial_No, correct_percentage=0.7):
+        """
+        Generates a randomized trial structure with balanced correct/incorrect executions.
+        
+        Args:
+            control_trial_No (int): Number of control trials without execution.
+            trial_No (int): Number of main trials with varying execution correctness.
+            correct_percentage (float): Percentage of correct executions in the main trials.
+        
+        Returns:
+            np.ndarray: A 2D array where each row represents a trial with columns for event type, execution correctness, and torque profile.
+        """
+
+        # --- CONTROL TRIALS (ALWAYS INCORRECT EXECUTION) ---
+        def generate_control_trials(n):
+            """Generate control trials with only incorrect executions (0)."""
+            ones = np.ones(n // 2, dtype=int)
+            zeros = np.zeros(n // 2, dtype=int)
+            if n % 2 != 0:
+                ones = np.append(ones, 1)  # Ensure UP gets the extra trial
+            events = np.append(ones, zeros)
+            executions = np.zeros(n, dtype=int)  # All incorrect
+            torques = np.zeros(n, dtype=int) # All smth
+            trials = np.column_stack((events, executions, torques))
+            np.random.shuffle(trials)
+            return trials
+
+        trial_rules1 = generate_control_trials(control_trial_No)
+        trial_rules3 = generate_control_trials(control_trial_No)
+
+        # --- MAIN TRIALS (VARYING EXECUTION CORRECTNESS) ---
+        # Generate UP (1) and DOWN (0) trials, ensuring an extra UP if odd
+        ones = np.ones(trial_No // 2, dtype=int)
+        zeros = np.zeros(trial_No // 2, dtype=int)
+        events = np.append(ones, zeros)
+
+        if trial_No % 2 != 0:
+            events = np.append(events, int(1))  # Extra UP
+
+        # Compute number of correct/incorrect trials
+        correct_count = int(np.round(trial_No * correct_percentage))
+        incorrect_count = trial_No - correct_count           
+
+        # Distribute correct/incorrect executions evenly among UPs and DOWNs
+        correct_up = correct_count // 2
+        correct_down = correct_count // 2
+        incorrect_up = incorrect_count // 2
+        incorrect_down = incorrect_count // 2
+
+        # Assign leftover trials due to rounding
+        leftover_correct = correct_count % 2
+        leftover_incorrect = incorrect_count % 2
+
+        if leftover_correct:
+            correct_up += 1  # Favor UPs for extra correct execution
+        if leftover_incorrect:
+            incorrect_down += 1  # Favor DOWNs for extra incorrect execution
+
+        # Create execution labels
+        correct_labels_up = np.ones(int(correct_up), dtype=int)
+        correct_labels_down = np.ones(int(correct_down), dtype=int)
+        incorrect_labels_up = np.zeros(int(incorrect_up), dtype=int)
+        incorrect_labels_down = np.zeros(int(incorrect_down), dtype=int)
+
+        # Merge correct and incorrect labels while keeping balance
+        executions = np.concatenate((correct_labels_up, incorrect_labels_up, correct_labels_down, incorrect_labels_down))
+
+        torques = np.array([], dtype=int)
+        for i in range(len(executions)):
+            torque_profile = np.random.choice(a=[0, 1, 2, 3, 4],p=[0, 0.8, 0, 0.2, 0])
+            torques = np.append(torques, torque_profile)            
+
+        # Combine into trial matrix and shuffle
+        trial_rules2 = np.column_stack((events, executions, torques))
+        np.random.shuffle(trial_rules2)
+
+        # --- COMBINE ALL TRIALS ---
+        final_trials = np.vstack((trial_rules1, trial_rules2, trial_rules3), dtype=int)
+
+        return final_trials

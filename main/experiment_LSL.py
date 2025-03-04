@@ -2,11 +2,19 @@ from pylsl import StreamInfo, StreamOutlet, local_clock, resolve_byprop, StreamI
 from time import perf_counter
 import json
 
-
 class LSLHandler:
 
-    def __init__(self, logger, receive = True, send = True):
+    def __init__(self, logger, receive=True, send=True):
+        """
+        Initialize the LSLHandler class.
+
+        Args:
+            logger (Logger): Logger instance for logging messages.
+            receive (bool): Flag to enable receiving data from LSL stream.
+            send (bool): Flag to enable sending data to LSL stream.
+        """
         self.logger = logger
+        self.timestamp_g = local_clock()
 
         if send:
             # Create LSL stream for sending instructions to EXO
@@ -15,7 +23,7 @@ class LSLHandler:
                 'Instructions',          # type
                 3,                       # channel_count
                 0,                       # nominal rate=0 for irregular streams
-                'float32',                # channel format
+                'float32',               # channel format
                 'Eduexo_PC'              # source_id
             )
             self.outlet_EXO = StreamOutlet(info_EXO)
@@ -48,10 +56,14 @@ class LSLHandler:
         """
         Continuously stream position/torque data (0.1s interval)
         and send an 'event' every 10s using one LSL Outlet.
-        """
 
+        Args:
+            stop_event (threading.Event): Event to signal stopping the streaming.
+            state_dict (dict): Dictionary containing the current state information.
+            the_lock (threading.Lock): Lock to synchronize access to shared resources.
+        """
         # Configuration
-        data_interval = state_dict["data_stream_interval"]          # how often we send 'data' samples
+        data_interval = state_dict["data_stream_interval"]  # how often we send 'data' samples
         last_data_time = perf_counter()
         old_event = 99
         self.timestamp_g = local_clock()
@@ -65,8 +77,8 @@ class LSLHandler:
                     self.timestamp_g = self.timestamp
                 if current_time - last_data_time >= data_interval:
                     position = state_dict["current_position"]   # current position
-                    velocity = state_dict["current_velocity"]   # current torque
-                    torque   = state_dict["current_torque"]     # current torque
+                    velocity = state_dict["current_velocity"]   # current velocity
+                    torque = state_dict["current_torque"]       # current torque
                     data_sample = {
                         'Sample_Type': 'data',
                         'Position': position,
@@ -104,22 +116,45 @@ class LSLHandler:
         self.logger.info("Stopped streaming Events data.")
 
     def EXO_stream_in(self, state_dict):
+        """
+        Receive data from EXO and update the state dictionary.
+
+        Args:
+            state_dict (dict): Dictionary containing the current state information.
+        """
         # Receive data from EXO
         self.inlet.flush()  
-        sample, _ = self.inlet.pull_sample(timeout=2)
+        sample, timestamp = self.inlet.pull_sample(timeout=3)
         
         if sample is None:
-            state_dict["stream_online"] = False
-            state_dict["current_position"] = None
+            try:
+                info = self.inlet.info(timeout=0.1)  # May timeout if stream is lost
+                if info is None:
+                    raise TimeoutError  # Force handling below
+            except TimeoutError:
+                self.logger.error("Stream lost!")
+                state_dict["current_position"] = None
+                state_dict["stream_online"] = False
+            except Exception as e:
+                self.logger.error(f"Unexpected error checking stream info: {e}")
+                state_dict["stream_online"] = False  # Assume lost on unexpected error
         else:
             state_dict["stream_online"] = True
             state_dict["current_position"] = round(sample[0], 5)
             state_dict["current_velocity"] = round(sample[1], 5)
             state_dict["current_torque"] = round(sample[2], 5)
             state_dict["exo_execution"] = sample[3]
-    
-    def EXO_stream_out(self, state_dict, torque_profile, correctness):       
-        # Send a TorqueProfile, direction and Correctness once every time new event happens
+
+    def EXO_stream_out(self, state_dict, torque_profile, correctness):
+        """
+        Send a TorqueProfile, direction, and Correctness once every time a new event happens.
+
+        Args:
+            state_dict (dict): Dictionary containing the current state information.
+            torque_profile (int): Torque profile to be sent.
+            correctness (int): Correctness of the execution.
+        """
+        # Determine direction based on trial type and correctness
         if state_dict["trial"] == "UP":
             if correctness == 1:
                 direction = 10
@@ -131,11 +166,13 @@ class LSLHandler:
             else:
                 direction = 10
 
+        # Send instructions data to EXO
         instructions_data = [int(torque_profile), int(correctness), int(direction)]
         self.outlet_EXO.push_sample(instructions_data)
         # print(instructions_data)
 
-        t_profile_dict = {0 : "trapezoid", 1 : "triangular", 2 : "sinusoide", 3 : "rectangular_pulse", 4 : "smoothed_trapezoid"}
+        # Map torque profile to its corresponding name
+        t_profile_dict = {0: "trapezoid", 1: "triangular", 2: "sinusoide", 3: "rectangular_pulse", 4: "smoothed_trapezoid"}
 
         state_dict["torque_profile"] = t_profile_dict[torque_profile]
         state_dict["correctness"] = correctness
