@@ -11,11 +11,10 @@
         "maximum_arm_position_deg": 165,
         "minimum_arm_position_deg": 55,
         "data_stream_interval": 0.01,
-        "decoder_enable": 0,
-        "decoder_correct_percantage": 0.7,
-        "save_data": 0,
-        "results_path": "./experiment_results",
-        "frequency_path": "./frequency_data"
+        "event_decoder_correct_percantage": 0.7,
+        "save_data": 1,
+        "results_path": "./analysis/experiment_results",
+        "frequency_path": "./analysis/frequency_data"
     },
     "participant": {
         "age": 22,

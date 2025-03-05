@@ -29,8 +29,7 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["maxP"] = experiment_config["experiment"]["maximum_arm_position_deg"]
     state_dict["minP"] = experiment_config["experiment"]["minimum_arm_position_deg"]
     state_dict["data_stream_interval"] = experiment_config["experiment"]["data_stream_interval"]
-    state_dict["decoder_enable"] = experiment_config["experiment"]["decoder_enable"]
-    state_dict["correct_percantage"] = experiment_config["experiment"]["decoder_correct_percantage"]
+    state_dict["correct_percantage"] = experiment_config["experiment"]["event_decoder_correct_percantage"]
 
     state_dict["experiment_start"] = -1
 
