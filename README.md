@@ -1,6 +1,6 @@
 # Eduexo Experiment (PC)
 
-A system for conducting experiments with an exoskeleton interface, designed to support various experimental workflows and data analysis.
+This project integrates a Brain-Machine Interface (BMI) to train a neural network for classifying human intentions during experiments. Participants are asked to think about moving their arm up or down, and the EXO device either aids or contradicts their movement. EEG signals are recorded during these tasks, which are later used to classify the participant's intentions. This setup allows for precise control and monitoring of the experiment and communication with both EXO and computer which reads 'Events stream' in real time.
 
 ## Prerequisites
 
@@ -80,24 +80,29 @@ This will start the experiment based on the configurations prepared in the previ
 
 ### `experiment_config.json` explanation
 
-- `experiment`: Contains settings related to the experiment.
-    - `number_of_trials`: Total number of assisted trials in the experiment.
-    - `number_of_control_trials`: Number of control trials (without EXO active).
-    - `state_wait_time_range`: Range of times in WAIT state.
-    - `imagination_time_range`: Range of times for IMAGINATION phase.
-    - `intention_time_range`: Range of times for INTENTION phase.
-    - `trial_timeout`: Timeout duration for each trial.
-    - `screen_width`: Width of the display screen.
-    - `screen_height`: Height of the display screen.
-    - `maximum_arm_position_deg`: Maximum arm position in degrees. (straight arm is 180 deg)
-    - `minimum_arm_position_deg`: Minimum arm position in degrees. (straight arm is 180 deg)
-    - `data_stream_interval`: Interval for data streaming.
-    - `event_decoder_correct_percantage`: Correct percentage for event decoder.
-    - `save_data`: Flag to save data (1 to save, 0 not to save).
-    - `results_path`: Path to save experiment results.
-    - `frequency_path`: Path to save frequency data.
-
-- `participant`: Contains information about the participant.
-    - `age`: Age of the participant.
-    - `id`: ID of the participant.
-    - `name`: Name of the participant.
+```json
+{
+    "experiment": {
+        "number_of_trials": "Total number of assisted trials in the experiment.",
+        "number_of_control_trials": "Number of control trials (without EXO active).",
+        "state_wait_time_range": "Range of times in WAIT state.",
+        "imagination_time_range": "Range of times for IMAGINATION phase.",
+        "intention_time_range": "Range of times for INTENTION phase.",
+        "trial_timeout": "Timeout duration for each trial.",
+        "screen_width": "Width of the display screen.",
+        "screen_height": "Height of the display screen.",
+        "maximum_arm_position_deg": "Maximum arm position in degrees. (straight arm is 180 deg)",
+        "minimum_arm_position_deg": "Minimum arm position in degrees. (straight arm is 180 deg)",
+        "data_stream_interval": "Interval for data streaming.",
+        "event_decoder_correct_percantage": "Correct percentage for event decoder.",
+        "save_data": "Flag to save data (1 to save, 0 not to save).",
+        "results_path": "Path to save experiment results.",
+        "frequency_path": "Path to save frequency data."
+    },
+    "participant": {
+        "age": "Age of the participant.",
+        "id": "ID of the participant.",
+        "name": "Name of the participant."
+    }
+}
+```
