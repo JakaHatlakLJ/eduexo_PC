@@ -12,7 +12,7 @@
         "minimum_arm_position_deg": 55,
         "data_stream_interval": 0.01,
         "event_decoder_correct_percantage": 0.7,
-        "save_data": 1,
+        "save_data": 0,
         "results_path": "./analysis/experiment_results",
         "frequency_path": "./analysis/frequency_data"
     },

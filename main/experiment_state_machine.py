@@ -74,7 +74,7 @@ class StateMachine:
         Updates the state of the experiment state machine based on the current state and state dictionary.
         Args:
             state_dict (dict): A dictionary containing the current state information and various flags.
-            exo_stream_out (function): A function to send data to the exoskeleton stream.
+            exo_stream_out (function): A function to send data through the EXO "Instructions" stream.
         Returns:
             tuple: A tuple containing a boolean indicating if the experiment is over and the updated state dictionary.
         The state machine transitions through the following states:
