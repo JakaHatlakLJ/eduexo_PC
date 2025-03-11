@@ -2,7 +2,7 @@ from pylsl import StreamInfo, StreamOutlet
 import time
 import random
 
-pos_tor = True                   # True for position and torque, False for torque profile and correctness
+pos_tor = True                   # True for position and torque, False for torque profile, direction and correctness
 
 if not pos_tor:
     dir_corr = True
