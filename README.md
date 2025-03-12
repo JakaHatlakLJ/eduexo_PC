@@ -84,26 +84,26 @@ This will start the experiment based on the configurations prepared in the previ
 ```json
 {
     "experiment": {
-        "number_of_trials": 200                     "Total number of assisted trials in the experiment.",
-        "number_of_control_trials": 10              "Number of control trials (without EXO active).",
-        "state_wait_time_range": [1, 1]             "Range of times in WAIT state.",
-        "imagination_time_range": [5, 5]            "Range of times for IMAGINATION phase.",
-        "intention_time_range": [2, 3]              "Range of times for INTENTION phase.",
-        "trial_timeout": 3                          "Timeout duration for each trial.",
-        "screen_width": 2000                        "Width of the display screen.",
-        "screen_height": 1050                       "Height of the display screen.",
-        "maximum_arm_position_deg": 165             "Maximum arm position in degrees. (straight arm is 180 deg)",
-        "minimum_arm_position_deg": 55              "Minimum arm position in degrees. (straight arm is 180 deg)",
-        "data_stream_interval": 0.01                "Interval for data streaming.",
-        "event_decoder_correct_percantage": 0.7     "Correct percentage for event decoder.",
-        "save_data": 1                              "Flag to save data (1 to save, 0 not to save).",
-        "results_path":                             "./analysis/experiment_results""Path to save experiment results.",
-        "frequency_path":                           "./analysis/frequency_data""Path to save frequency data."
+        "number_of_trials": 200                        "Total number of assisted trials in the experiment.",
+        "number_of_control_trials": 10                 "Number of control trials (without EXO active).",
+        "state_wait_time_range": [1, 1]                "Range of times in WAIT state.",
+        "imagination_time_range": [5, 5]               "Range of times for IMAGINATION phase.",
+        "intention_time_range": [2, 3]                 "Range of times for INTENTION phase.",
+        "trial_timeout": 3                             "Timeout duration for each trial.",
+        "screen_width": 2000                           "Width of the display screen.",
+        "screen_height": 1050                          "Height of the display screen.",
+        "maximum_arm_position_deg": 165                "Maximum arm position in degrees. (straight arm is 180 deg)",
+        "minimum_arm_position_deg": 55                 "Minimum arm position in degrees.",
+        "data_stream_interval": 0.01                   "Interval for motor parameters streaming.",
+        "event_decoder_correct_percantage": 0.7        "Correct Execution percentage for event decoder.",
+        "save_data": 1                                 "Flag to save data (1 to save, 0 not to save).",
+        "results_path":"./analysis/experiment_results" "Path to save experiment results.",
+        "frequency_path":"./analysis/frequency_data"   "Path to save frequency data."
     },
     "participant": {
-        "age": 22                                   "Age of the participant.",
-        "id": 1                                     "ID of the participant.",
-        "name":"Jaka"                               "Name of the participant."
+        "age": 22                                      "Age of the participant.",
+        "id": 1                                        "ID of the participant.",
+        "name":"Jaka"                                  "Name of the participant."
     }
 }
 ```
