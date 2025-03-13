@@ -73,6 +73,8 @@ python experiment_do.py
 
 2. Run `EXO_main.py` on EXO at the same time and follow the instructions. (If run for testing purposes you can additionaly use LSL_send_position.py on EXO)
 
+3. If run with real decoding, another LSL stream of name "PredictionStream" is needed. For testing run /testing_&_debugging/LSL_synthetic_predictions.py in a seperate terminal to mimic the real decoder.
+
 This will start the experiment based on the configurations prepared in the previous steps.
 
 ## Additional Information

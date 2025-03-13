@@ -4,17 +4,21 @@ from experiment_LSL import LSLHandler
 
 class Interface:
     """
-    GUI for EDUEXO-EEG experiment:\n
-    inlet: LSL stream inlet of eduexo's current position, velocity and trorque\n
-    state_dict: state dictionary created at the start of experiment\n
-    width: width of a GUI screen\n
-    height: height of GUI screen\n
-    offset: offset of goal bands from the edge of the screen\n
-    pas: width of the goal band\n
-    maxP: edge position of eduexo in extension [deg]\n
-    minP: edge position of eduexo in compression [deg]\n
+    Class for handling GUI for EDUEXO-EEG experiment:
     """
-    def __init__(self, inlet, state_dict = {}, width=1280, height=820, offset=100, pas=80, maxP=180, minP=55):
+
+    def __init__(self, state_dict = {}, width=1280, height=820, offset=100, pas=80, maxP=180, minP=55):
+        """
+        Initializes pygame and all necessary parameters:
+        
+        :param state_dict: state dictionary created at the start of experiment
+        :param width: width of a GUI screen
+        :param height: height of GUI screen
+        :param offset: offset of goal bands from the edge of the screen
+        :param pas: width of the goal band
+        :param maxP: edge position of eduexo in extension [deg]
+        :param minP: edge position of eduexo in compression [deg]
+        """
         self.width = width
         self.height = height
         self.offset = offset
@@ -24,8 +28,6 @@ class Interface:
 
         self.state_dict = state_dict
         self.total_trials = state_dict["trials_No"] + 2 * state_dict["control_trials_No"]
-
-        self.inlet = inlet
 
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
@@ -47,6 +49,8 @@ class Interface:
     def update(self, state_dict):
         """
         pulls LSL sample and updates state_dict values related to current position of eduexo
+
+        :param state_dict: state dictionary of main program
         """
         self.state_dict = state_dict
 
@@ -82,6 +86,8 @@ class Interface:
     def draw(self, dot_pos):
         """
         Draws all GUI components on the screen
+
+        :param dot_pos: position of the dot on the screen
         """
         if "background_color" in self.state_dict:
             self.screen.fill(self.state_dict["background_color"])
@@ -126,7 +132,6 @@ class Interface:
                 self._draw_dynamic_text(text=number, x_position=0.36*self.width, y_position=0.6*self.height)                                    # Successfulness results
 
         #### ALL THE OTHER STATES
-        
         #### BAND COLORING
         else:
             p11 = pygame.Vector2(0, self.offset + self.pas/2)
@@ -293,8 +298,7 @@ class Interface:
 
         
 if __name__ == "__main__":
-    inlet = Interface.lsl_stream()
-    interface = Interface(inlet=inlet)
+    interface = Interface()
     interface.state_dict["event_type"] = None
     interface.state_dict["trial_in_progress"] = True
     interface.state_dict["main_text"] = "Return to center"

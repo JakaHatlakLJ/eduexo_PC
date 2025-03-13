@@ -4,8 +4,20 @@ import json
 import random
 
 class Logger:
+    """
+    Class for logging experiment data and frequency data.
+    """
 
-    def __init__(self, results_path, frequency_path, participant_id, no_log, save_data=False):
+    def __init__(self, results_path: str, frequency_path: str, participant_id: int, no_log: bool, save_data: bool=False):
+        """
+        Initialize the Logger class.
+        
+        :param results_path: Path to the folder where the experiment data is saved.
+        :param frequency_path: Path to the folder where the frequency data is saved.
+        :param participant_id: Participant ID.
+        :param no_log: If True, logging is disabled.
+        :param save_data: If True, the data is saved to the disk.
+        """
         self.save_data = save_data
         self.results_path = results_path
         self.frequency_path = frequency_path
@@ -36,6 +48,9 @@ class Logger:
         self.data_dict["prediction"] = 0
 
     def create_file(self):
+        """
+        Create a file for saving the data.
+        """
         self.column_names = []
         self.original_state_dict_keys = set(self.data_dict.keys())
         sorted_keys = sorted(self.data_dict.keys())
@@ -55,6 +70,9 @@ class Logger:
         self.data_exists = True
 
     def save_datapoint(self):
+        """
+        Save a datapoint to the file.
+        """
         if self.no_log or not self.save_data:
             return
         
@@ -77,7 +95,13 @@ class Logger:
 
         self.data_file.write("\t".join(datapoint_to_write) + "\n")
 
-    def save_experiment_config(self, experiment_config, filename=None):
+    def save_experiment_config(self, experiment_config: dict, filename: str=None):
+        """
+        Save the experiment configuration to a file.
+
+        :param experiment_config: Experiment configuration file.
+        :param filename: Filename for the experiment configuration
+        """
         if not self.no_log and self.save_data:
             if filename is None:
                 file_idx = len([filename for filename in os.listdir(os.path.join(self.results_path, self.participant_folder)) if filename.startswith("experiment_config")])
@@ -87,6 +111,13 @@ class Logger:
             json.dump(experiment_config, open(os.path.join(self.results_path, self.participant_folder, filename),"w"), indent=4, sort_keys=True)
 
     def save_data_dict(self, state_dict, reset=False):
+        """
+        Save the state dictionary values to the data dictionary.
+
+        :param state_dict: State dictionary.
+        :param reset: If True, reset the data dictionary
+        """
+
         if reset == True:
             self.data_dict = {key:0 for key in self.data_dict}
         

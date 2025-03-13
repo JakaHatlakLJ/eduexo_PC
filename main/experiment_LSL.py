@@ -2,18 +2,22 @@ from pylsl import StreamInfo, StreamOutlet, local_clock, resolve_byprop, StreamI
 from time import perf_counter
 import threading
 import json
+import logging
 
 class LSLHandler:
 
-    def __init__(self, logger, receive: bool=True, send: bool=True, predict: bool=False):
+    def __init__(self, receive: bool=True, send: bool=True, predict: bool=False):
         """
         Initialize the LSLHandler class.
 
-        :param logger: Logger instance for logging messages.
         :param receive: Flag to enable receiving data from LSL stream.
         :param send: Flag to enable sending data to LSL stream.
+        :param predict: Flag to enable receiving predictions from LSL stream.
         """
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger("LSL")
         self.logger = logger
+        self.logger_predictions = logging.getLogger("Predictions")
         self.timestamp_g = local_clock()
 
         if send:
@@ -98,7 +102,7 @@ class LSLHandler:
                     }
                     data_json_str = json.dumps(data_sample)
                     self.outlet_classifier.push_sample([data_json_str], timestamp=self.timestamp)
-                    # print(data_json_str)
+                    # self.logger.info(data_json_str)
 
                     last_data_time = current_time
 
@@ -116,7 +120,7 @@ class LSLHandler:
                     }
                     event_json_str = json.dumps(event_data)
                     self.outlet_classifier.push_sample([event_json_str], timestamp=self.timestamp)
-                    print(event_json_str)
+                    self.logger.info(event_json_str)
                     old_event = state_dict["event_id"]
 
             except Exception as e:
@@ -129,8 +133,7 @@ class LSLHandler:
         """
         Receive data from EXO and update the state dictionary.
 
-        Args:
-            state_dict (dict): Dictionary containing the current state information.
+        :param state_dict: Dictionary containing the current state information.
         """
         # Receive data from EXO
         self.inlet.flush()  
@@ -158,11 +161,10 @@ class LSLHandler:
     def EXO_stream_out(self, state_dict: dict, torque_profile: int, correctness: int = None):
         """
         Send a TorqueProfile, direction, and Correctness once every time a new event happens.
-
-        Args:
-            state_dict (dict): Dictionary containing the current state information.
-            torque_profile (int): Torque profile to be sent.
-            correctness (int): Correctness of the execution.
+        
+        :param state_dict: Dictionary containing the current state information.
+        :param torque_profile: Torque profile to be sent.
+        :param correctness: Correctness of the execution.
         """
         if state_dict["synthetic_decoder"]:
             # Determine direction based on trial type and correctness
@@ -219,5 +221,5 @@ class LSLHandler:
                                     state_dict["prediction"] = prediction_data["predicted_event_name"]
                                 recieved = True
                                 if verbose:
-                                    print(prediction_data)
+                                    self.logger_predictions.info(prediction_data)
                         previous_time = current_time

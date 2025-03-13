@@ -40,6 +40,7 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["current_state"] = None
     state_dict["torque_profile"] = None
     
+    prediction_stream = False
     if not state_dict["synthetic_decoder"]:
         state_dict["prediction"] = None
         prediction_stream = True
@@ -60,7 +61,7 @@ def initialize_state_dict(state_dict, experiment_config):
 
     state_dict["background_color"] = "black"
     state_dict["color"] = "white"
-     
+    
     return state_dict, prediction_stream
 
 if __name__ == "__main__":
@@ -75,7 +76,7 @@ if __name__ == "__main__":
     
     # Setup logger
     logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger("LSL")
+    logger = logging.getLogger("Main")
 
     # Setup results logging
     save_data = True if experiment_config["experiment"]["save_data"] == 1 else False
@@ -93,9 +94,8 @@ if __name__ == "__main__":
     state_dict, predict = initialize_state_dict(state_dict, experiment_config)
 
     # Create an Inlet for incoming LSL Stream
-    LSL = LSLHandler(logger, predict=predict)
+    LSL = LSLHandler(predict=predict)
     interface = Interface(
-        inlet       =   LSL.inlet,
         state_dict  =   state_dict,
         width       =   state_dict["width"],
         height      =   state_dict["height"],
