@@ -1,17 +1,17 @@
 from pylsl import StreamInfo, StreamOutlet, local_clock, resolve_byprop, StreamInlet
 from time import perf_counter
+import threading
 import json
 
 class LSLHandler:
 
-    def __init__(self, logger, receive=True, send=True):
+    def __init__(self, logger, receive: bool=True, send: bool=True, predict: bool=False):
         """
         Initialize the LSLHandler class.
 
-        Args:
-            logger (Logger): Logger instance for logging messages.
-            receive (bool): Flag to enable receiving data from LSL stream.
-            send (bool): Flag to enable sending data to LSL stream.
+        :param logger: Logger instance for logging messages.
+        :param receive: Flag to enable receiving data from LSL stream.
+        :param send: Flag to enable sending data to LSL stream.
         """
         self.logger = logger
         self.timestamp_g = local_clock()
@@ -45,22 +45,32 @@ class LSLHandler:
             # Resolve LSL stream for receiving EXO data and create an inlet
             logger.info("Looking for LSL stream of type: 'EXO'...")
             while True:
-                streams = resolve_byprop('type', 'EXO', timeout=10)
+                streams = resolve_byprop('type', 'EXO', timeout=5)
                 if streams:
                     break
                 logger.warning("No LSL stream found of type: 'EXO'. Retrying...")
             self.inlet = StreamInlet(streams[0])
             logger.info("Receiving data from EXO...")
 
-    def stream_events_data(self, stop_event, state_dict, the_lock):
+        if predict:
+            # Resolve "PredictionStream" for receiving decoded events
+            logger.info("Looking for LSL stream of name: 'PredictionStream'...")
+            while True:
+                streams_p = resolve_byprop('name', 'PredictionStream', timeout=5)
+                if streams_p:
+                    break
+                logger.warning("No LSL stream found of name: 'PredictionStream'. Retrying...")
+            self.predictions_inlet = StreamInlet(streams_p[0])
+            logger.info("Receiving data from EXO...")
+
+    def stream_events_data(self, stop_event: threading.Event, state_dict: dict, the_lock: threading.Lock):
         """
         Continuously stream position/torque data (0.1s interval)
         and send an 'event' every 10s using one LSL Outlet.
 
-        Args:
-            stop_event (threading.Event): Event to signal stopping the streaming.
-            state_dict (dict): Dictionary containing the current state information.
-            the_lock (threading.Lock): Lock to synchronize access to shared resources.
+        :param stop_event: Event to signal stopping the streaming.
+        :param state_dict: Dictionary containing the current state information.
+        :param the_lock: Lock to synchronize access to shared resources.
         """
         # Configuration
         data_interval = state_dict["data_stream_interval"]  # how often we send 'data' samples
@@ -115,7 +125,7 @@ class LSLHandler:
 
         self.logger.info("Stopped streaming Events data.")
 
-    def EXO_stream_in(self, state_dict):
+    def EXO_stream_in(self, state_dict: dict):
         """
         Receive data from EXO and update the state dictionary.
 
@@ -145,7 +155,7 @@ class LSLHandler:
             state_dict["current_torque"] = round(sample[2], 5)
             state_dict["exo_execution"] = sample[3]
 
-    def EXO_stream_out(self, state_dict, torque_profile, correctness):
+    def EXO_stream_out(self, state_dict: dict, torque_profile: int, correctness: int = None):
         """
         Send a TorqueProfile, direction, and Correctness once every time a new event happens.
 
@@ -154,17 +164,31 @@ class LSLHandler:
             torque_profile (int): Torque profile to be sent.
             correctness (int): Correctness of the execution.
         """
-        # Determine direction based on trial type and correctness
-        if state_dict["trial"] == "UP":
-            if correctness == 1:
-                direction = 10
+        if state_dict["synthetic_decoder"]:
+            # Determine direction based on trial type and correctness
+            if state_dict["trial"] == "UP":
+                if correctness == 1:
+                    direction = 10
+                else:
+                    direction = 20
             else:
-                direction = 20
+                if correctness == 1:
+                    direction = 20
+                else:
+                    direction = 10
         else:
-            if correctness == 1:
-                direction = 20
-            else:
+            if state_dict["prediction"] == "UP":
                 direction = 10
+                if state_dict["trial"] == "UP":
+                    correctness = 1
+                else:
+                    correctness = 0
+            else:
+                direction = 20
+                if state_dict["trial"] == "UP":
+                    correctness = 0
+                else:
+                    correctness = 1
 
         # Send instructions data to EXO
         instructions_data = [int(torque_profile), int(correctness), int(direction)]
@@ -177,3 +201,23 @@ class LSLHandler:
         state_dict["torque_profile"] = t_profile_dict[torque_profile]
         state_dict["correctness"] = correctness
 
+    def get_predictions(self, stop_event: threading.Event, state_dict: dict = None, verbose: bool=False):
+            if state_dict is None:
+                state_dict = {}
+            previous_time = perf_counter()
+            while not stop_event.is_set():
+                self.predictions_inlet.flush()
+                recieved = False
+                while state_dict["current_state"] in {"TRIAL_UP", "TRIAL_DOWN"}:
+                    current_time = perf_counter()
+                    if current_time - previous_time >= 1/200:
+                        sample, timestamp = self.predictions_inlet.pull_sample(timeout=0.1)
+                        if sample is not None and len(sample) > 0:
+                            prediction_data = json.loads(sample[0])  # If there's only 1 channel
+                            if not recieved:
+                                if state_dict["activate_EXO"]:
+                                    state_dict["prediction"] = prediction_data["predicted_event_name"]
+                                recieved = True
+                                if verbose:
+                                    print(prediction_data)
+                        previous_time = current_time

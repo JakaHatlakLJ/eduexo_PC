@@ -43,10 +43,10 @@ class StateMachine:
     IMAGINATION = 4
     INTENTION = 5
 
-    GO_TO_UPPER_BAND = 6
+    TRIAL_UP = 6
     IN_UPPER_BAND = 7
     GO_OUT_OF_UPPER_BAND = 8
-    GO_TO_LOWER_BAND = 9
+    TRIAL_DOWN = 9
     IN_LOWER_BAND = 10
     GO_OUT_OF_LOWER_BAND = 11
 
@@ -84,9 +84,9 @@ class StateMachine:
             - WAITING: Waiting for the start of the trial.
             - IMAGINATION: Imagining movement.
             - INTENTION: Intending movement.
-            - GO_TO_UPPER_BAND: Executing "UP" trial.
+            - TRIAL_UP: Executing "UP" trial.
             - IN_UPPER_BAND: "UP" trial successful.
-            - GO_TO_LOWER_BAND: Executing "DOWN" trial.
+            - TRIAL_DOWN: Executing "DOWN" trial.
             - IN_LOWER_BAND: "DOWN" trial successful.
             - TIMEOUT: Timeout occurred.
             - FAILURE: Failure occurred.
@@ -133,8 +133,9 @@ class StateMachine:
             elif time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 if self.i < len(self.events):
                     self.current_state = StateMachine.WAITING
-                    self.correctness = self.correctness_list[self.i]
-                    self.torque_profile = self.torque_profile_list[self.i]
+                    if self.synthetic_decoder:
+                        self.correctness = self.correctness_list[self.i]
+                        self.torque_profile = self.torque_profile_list[self.i]
                     if self.events[self.i] == 1:
                         self.i += 1
                         state_dict["trial"] = "UP"
@@ -175,22 +176,28 @@ class StateMachine:
             self.send_once = True
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
                 if state_dict["trial"] == "UP":
-                    self.current_state = StateMachine.GO_TO_UPPER_BAND
+                    self.current_state = StateMachine.TRIAL_UP
                     state_dict["event_type"] = "execute_UP"
                     state_dict["event_id"] = StateMachine.execute_UP
                 else:
-                    self.current_state = StateMachine.GO_TO_LOWER_BAND
+                    self.current_state = StateMachine.TRIAL_DOWN
                     state_dict["event_type"] = "execute_DOWN"
                     state_dict["event_id"] = StateMachine.execute_DOWN
                 self.set_go_to_band(state_dict)
 
         #### WHEN "UP" TRIAL IS HAPPENING
-        elif self.current_state == StateMachine.GO_TO_UPPER_BAND:
+        elif self.current_state == StateMachine.TRIAL_UP:
             if state_dict["in_the_middle"] == False:
                 if state_dict["activate_EXO"]:
-                    if self.send_once:
-                        exo_stream_out(state_dict, self.torque_profile, self.correctness)
-                        self.send_once = False 
+                    if self.synthetic_decoder:
+                        if self.send_once:
+                            exo_stream_out(state_dict, self.torque_profile, self.correctness)
+                            self.send_once = False
+                    else: 
+                        if state_dict["prediction"] is not None:
+                            torque_profile = np.random.choice(a=[0, 1, 2, 3, 4],p=[0, 0.8, 0, 0.2, 0])
+                            exo_stream_out(state_dict, torque_profile)
+                            state_dict["prediction"] = None
             if state_dict["is_UP"]:
                 self.current_state = StateMachine.IN_UPPER_BAND
                 self.set_in_upper_band(state_dict)
@@ -212,12 +219,18 @@ class StateMachine:
                     state_dict["succ_trials"] = len(self.times)
 
         #### WHEN "DOWN" TRIAL IS HAPPENING
-        elif self.current_state == StateMachine.GO_TO_LOWER_BAND:
+        elif self.current_state == StateMachine.TRIAL_DOWN:
             if state_dict["in_the_middle"] == False:
                 if state_dict["activate_EXO"]:
-                    if self.send_once:
-                        exo_stream_out(state_dict, self.torque_profile, self.correctness)
-                        self.send_once = False 
+                    if self.synthetic_decoder:
+                        if self.send_once:
+                            exo_stream_out(state_dict, self.torque_profile, self.correctness)
+                            self.send_once = False 
+                    else: 
+                        if state_dict["prediction"] is not None:
+                            torque_profile = np.random.choice(a=[0, 1, 2, 3, 4],p=[0, 0.8, 0, 0.2, 0])
+                            exo_stream_out(state_dict, torque_profile)
+                            state_dict["prediction"] = None
             if state_dict["is_DOWN"]:
                 self.current_state = StateMachine.IN_LOWER_BAND
                 self.set_in_lower_band(state_dict)
@@ -253,7 +266,7 @@ class StateMachine:
         #### PAUSE
         if state_dict["space_pressed"] and not self.current_state == StateMachine.EXIT:
             if self.current_state != StateMachine.PAUSE:
-                if state_dict["trial_in_progress"] and self.current_state in {StateMachine.GO_TO_UPPER_BAND, StateMachine.GO_TO_LOWER_BAND}:
+                if state_dict["trial_in_progress"] and self.current_state in {StateMachine.TRIAL_UP, StateMachine.TRIAL_DOWN}:
                     state_dict["timeout"] = state_dict["remaining_time"]
                 self.previous_trial = state_dict["trial"]
                 self.previous_event_id = state_dict["event_id"]
@@ -301,16 +314,17 @@ class StateMachine:
             self.set_exit_or_error(state_dict, "firebrick", "STREAM OFFLINE", "Press ESC to exit or press ENTER when stream is online")
 
         #### WHILE TRIAL IS IN PROGRESS
-        if self.current_state in {StateMachine.WAITING, StateMachine.IMAGINATION, StateMachine.INTENTION, StateMachine.GO_TO_UPPER_BAND, StateMachine.GO_TO_LOWER_BAND}:
+        if self.current_state in {StateMachine.WAITING, StateMachine.IMAGINATION, StateMachine.INTENTION, StateMachine.TRIAL_UP, StateMachine.TRIAL_DOWN}:
             state_dict["trial_in_progress"] = True
-            if self.current_state in {StateMachine.GO_TO_LOWER_BAND, StateMachine.GO_TO_UPPER_BAND}:
+            if self.current_state in {StateMachine.TRIAL_DOWN, StateMachine.TRIAL_UP}:
                 if state_dict["exo_execution"] == 1:
-                    if self.correctness == 1:
-                        state_dict["event_id"] = StateMachine.exo_execution_correct
-                        state_dict["event_type"] = "exo_execution_correct"
-                    else:
-                        state_dict["event_id"] = StateMachine.exo_execution_incorrect
-                        state_dict["event_type"] = "exo_execution_incorrect"
+                    if self.synthetic_decoder:
+                        if self.correctness == 1:
+                            state_dict["event_id"] = StateMachine.exo_execution_correct
+                            state_dict["event_type"] = "exo_execution_correct"
+                        else:
+                            state_dict["event_id"] = StateMachine.exo_execution_incorrect
+                            state_dict["event_type"] = "exo_execution_incorrect"
 
                 state_dict["remaining_time"] = round(state_dict["timeout"] - (time() - state_dict["trial_time"]), 1)
 
@@ -354,10 +368,15 @@ class StateMachine:
         state_dict["main_text"] = ""
         state_dict["background_color"] = "black"
 
-        trial_rules = self.generate_trials(self.control_trial_No, self.trial_No, self.correct_percentage)
-        self.events = trial_rules[:, 0]
-        self.correctness_list = trial_rules[:, 1]
-        self.torque_profile_list = trial_rules[:, 2]
+        # Generate trial rules 
+        if state_dict["synthetic_decoder"]:
+            # if synthetic decoder will be used to decode events
+            self.synthetic_decoder = True
+            self.generate_synthetic_trials(self.control_trial_No, self.trial_No, self.correct_percentage, update_instance=True)
+        else:
+            # if "PredictionStream" will be used to decode events
+            self.synthetic_decoder = False
+            self.generate_trials(self.control_trial_No, self.trial_No, update_instance=True)
 
     def set_return_to_center(self, state_dict):
         state_dict["state_start_time"] = None
@@ -449,35 +468,55 @@ class StateMachine:
         state_dict["previous_space_state"] = current_space_state
 
     @staticmethod
-    def generate_trials(control_trial_No, trial_No, correct_percentage=0.7):
+    def generate_control_trials(n):
+        """Generate control trials with only incorrect executions (0)."""
+        ones = np.ones(n // 2, dtype=int)
+        zeros = np.zeros(n // 2, dtype=int)
+        if n % 2 != 0:
+            ones = np.append(ones, 1)  # Ensure UP gets the extra trial
+        events = np.append(ones, zeros)
+        executions = np.zeros(n, dtype=int)  # All incorrect
+        torques = np.zeros(n, dtype=int) # All smth
+        trials = np.column_stack((events, executions, torques))
+        np.random.shuffle(trials)
+        return trials
+
+    def generate_trials(self, control_trial_No: int, trial_No: int, update_instance: bool = False) -> np.ndarray:
+        """
+        Generates randomized trials without execution correctness and torque profiles, used with real decoder.
+        
+        :param control_trial_No: Number of control trials.
+        :param trial_No: Number of main trials.
+        :param update_instance: If True, updates the instance variables with the generated trials.
+        
+        Returns:
+            np.ndarray: An array of all trials.
+        """
+
+        trial_rules1 = self.generate_control_trials(control_trial_No)
+        trial_rules2 = self.generate_control_trials(trial_No)
+        trial_rules3 = self.generate_control_trials(control_trial_No)
+        # --- COMBINE ALL TRIALS ---
+        final_trials = np.vstack((trial_rules1, trial_rules2, trial_rules3), dtype=int)
+        if update_instance:
+            self.events = final_trials[:, 0]
+        return final_trials[:, 0]
+
+    def generate_synthetic_trials(self, control_trial_No: int, trial_No: int, correct_percentage: float=0.7, update_instance: bool = False) -> np.ndarray:
         """
         Generates a randomized trial structure with balanced correct/incorrect executions.
         
-        Args:
-            control_trial_No (int): Number of control trials without execution.
-            trial_No (int): Number of main trials with varying execution correctness.
-            correct_percentage (float): Percentage of correct executions in the main trials.
+        :param control_trial_No: Number of control trials without execution.
+        :param trial_No: Number of main trials with varying execution correctness.
+        :param correct_percentage: Percentage of correct executions in the main trials.
+        :param update_instance: If True, updates the instance variables with the generated trials.
         
         Returns:
             np.ndarray: A 2D array where each row represents a trial with columns for event type, execution correctness, and torque profile.
         """
 
-        # --- CONTROL TRIALS (ALWAYS INCORRECT EXECUTION) ---
-        def generate_control_trials(n):
-            """Generate control trials with only incorrect executions (0)."""
-            ones = np.ones(n // 2, dtype=int)
-            zeros = np.zeros(n // 2, dtype=int)
-            if n % 2 != 0:
-                ones = np.append(ones, 1)  # Ensure UP gets the extra trial
-            events = np.append(ones, zeros)
-            executions = np.zeros(n, dtype=int)  # All incorrect
-            torques = np.zeros(n, dtype=int) # All smth
-            trials = np.column_stack((events, executions, torques))
-            np.random.shuffle(trials)
-            return trials
-
-        trial_rules1 = generate_control_trials(control_trial_No)
-        trial_rules3 = generate_control_trials(control_trial_No)
+        trial_rules1 = self.generate_control_trials(control_trial_No)
+        trial_rules3 = self.generate_control_trials(control_trial_No)
 
         # --- MAIN TRIALS (VARYING EXECUTION CORRECTNESS) ---
         # Generate UP (1) and DOWN (0) trials, ensuring an extra UP if odd
@@ -503,9 +542,9 @@ class StateMachine:
         leftover_incorrect = incorrect_count % 2
 
         if leftover_correct:
-            correct_up += 1  # Favor UPs for extra correct execution
+            correct_up += 1
         if leftover_incorrect:
-            incorrect_down += 1  # Favor DOWNs for extra incorrect execution
+            incorrect_down += 1
 
         # Create execution labels
         correct_labels_up = np.ones(int(correct_up), dtype=int)
@@ -527,5 +566,10 @@ class StateMachine:
 
         # --- COMBINE ALL TRIALS ---
         final_trials = np.vstack((trial_rules1, trial_rules2, trial_rules3), dtype=int)
+
+        if update_instance:
+            self.events = final_trials[:, 0]
+            self.correctness_list = final_trials[:, 1]
+            self.torque_profile_list = final_trials[:, 2]
 
         return final_trials

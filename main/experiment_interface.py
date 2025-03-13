@@ -136,7 +136,7 @@ class Interface:
                     color = "green"    
                 elif self.state_dict["is_DOWN"]:
                     color = "red"    
-                elif not self.in_band and self.state_dict["current_state"] == "GO_TO_UPPER_BAND": 
+                elif not self.in_band and self.state_dict["current_state"] == "TRIAL_UP": 
                     color = self.state_dict["color"]
                 else:
                     color = "black"
@@ -149,7 +149,7 @@ class Interface:
                     color = "green"    
                 elif self.state_dict["is_UP"]:
                     color = "red"    
-                elif not self.in_band and self.state_dict["current_state"] == "GO_TO_LOWER_BAND":
+                elif not self.in_band and self.state_dict["current_state"] == "TRIAL_DOWN":
                     color = self.state_dict["color"]         
                 else:
                     color = "black"                    

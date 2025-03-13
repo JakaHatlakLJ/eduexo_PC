@@ -29,17 +29,20 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["maxP"] = experiment_config["experiment"]["maximum_arm_position_deg"]
     state_dict["minP"] = experiment_config["experiment"]["minimum_arm_position_deg"]
     state_dict["data_stream_interval"] = experiment_config["experiment"]["data_stream_interval"]
-    state_dict["correct_percantage"] = experiment_config["experiment"]["event_decoder_correct_percantage"]
+    state_dict["synthetic_decoder"] = True if experiment_config["experiment"]["synthetic_decoder"] == 1 else False
+    state_dict["correct_percantage"] = experiment_config["experiment"]["synthetic_decoder_correct_percantage"]
 
-    state_dict["experiment_start"] = -1
-
-    state_dict["torque_profile"] = None
 
     state_dict["enter_pressed"] = False
     state_dict["escape_pressed"] = False
     state_dict["space_pressed"] = False
-    
     state_dict["stream_online"] = True
+    state_dict["current_state"] = None
+    state_dict["torque_profile"] = None
+    
+    if not state_dict["synthetic_decoder"]:
+        state_dict["prediction"] = None
+        prediction_stream = True
 
     state_dict["trial"] = ""
     state_dict["event_id"] = 99
@@ -52,13 +55,13 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["current_velocity"] = 0
     state_dict["current_torque"] = 0
 
-    # state_dict["needs_update"] = False
+    # state_dict["needs_update"] = False # This is not used in the current version, if needed, uncomment the lines in the main loop and signal the update
     state_dict["activate_EXO"] = False
 
     state_dict["background_color"] = "black"
     state_dict["color"] = "white"
      
-    return state_dict
+    return state_dict, prediction_stream
 
 if __name__ == "__main__":
 
@@ -85,12 +88,12 @@ if __name__ == "__main__":
     )
     data_log.save_experiment_config(experiment_config)
 
-    # Create an Inlet for incoming LSL Stream
-    LSL = LSLHandler(logger)
-
     # Initialize experiment state
     state_dict = None
-    state_dict = initialize_state_dict(state_dict, experiment_config)
+    state_dict, predict = initialize_state_dict(state_dict, experiment_config)
+
+    # Create an Inlet for incoming LSL Stream
+    LSL = LSLHandler(logger, predict=predict)
     interface = Interface(
         inlet       =   LSL.inlet,
         state_dict  =   state_dict,
@@ -110,7 +113,13 @@ if __name__ == "__main__":
         daemon=True
     )
     streamer_thread.start()
-    
+    if not state_dict["synthetic_decoder"]:
+        prediction_thread = threading.Thread(
+            target=LSL.get_predictions,
+            args=(stop_event, state_dict, True),
+            daemon=True
+        )
+        prediction_thread.start()
     continue_experiment = True
     experiment_over = False
 
