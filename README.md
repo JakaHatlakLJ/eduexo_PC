@@ -46,7 +46,8 @@ Eduexo_PC/
 │   ├── LSL_outlet.py                   # LSL outlet
 │   ├── LSL_parameter_sender.py         # Send parameters to EXO
 │   ├── LSL_predictions_inlet.py        # Test predictions inlet
-│   └── LSL_read_events_stream.py       # Test events stream
+│   ├── LSL_read_events_stream.py       # Test events stream
+│   └── LSL_synthetic_predictions.py    # Test real event decoding
 ├── requirements.txt                    # Dependencies
 └── README.md                           # Documentation
 ```
@@ -95,7 +96,8 @@ This will start the experiment based on the configurations prepared in the previ
         "maximum_arm_position_deg": 165                "Maximum arm position in degrees. (straight arm is 180 deg)",
         "minimum_arm_position_deg": 55                 "Minimum arm position in degrees.",
         "data_stream_interval": 0.01                   "Interval for motor parameters streaming.",
-        "event_decoder_correct_percantage": 0.7        "Correct Execution percentage for event decoder.",
+        "synthetic_decoder": 1                         "Flag to choose decoder (1 for synthetic, 0 for real)",
+        "synthetic_decoder_correct_percantage": 0.7    "Correct Execution percentage for synthetic decoder.",
         "save_data": 1                                 "Flag to save data (1 to save, 0 not to save).",
         "results_path":"./analysis/experiment_results" "Path to save experiment results.",
         "frequency_path":"./analysis/frequency_data"   "Path to save frequency data."
