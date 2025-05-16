@@ -1,6 +1,7 @@
 import pygame
 from pylsl import StreamInlet, resolve_streams, resolve_byprop
 from experiment_LSL import LSLHandler
+from time import perf_counter
 
 class Interface:
     """
@@ -30,9 +31,11 @@ class Interface:
         self.total_trials = state_dict["trials_No"] + 2 * state_dict["control_trials_No"]
 
         pygame.init()
-        self.screen = pygame.display.set_mode((self.width, self.height))
+        self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
+        self.edge_margin = 2
         self.clock = pygame.time.Clock()
         self.continue_experiment = True
+        self.prev_time = perf_counter()
 
         #### CREATE DIFFERENT FONTS
         self.font = pygame.font.SysFont('Arial', 48)    # Select font and size
@@ -41,10 +44,7 @@ class Interface:
         self.font4 = pygame.font.SysFont('Arial', 24, bold=True)
 
         #### CREATE ALL STATIC TEXTs
-        self.UP_text = self._create_static_text(text="UP", y_position=self.offset + self.pas/2, font=1)                                         # Upper band text
-        self.DOWN_text = self._create_static_text(text="DOWN", y_position=self.height - self.offset - self.pas/2, font=1)                       # Lower band text
-        self.current_trial_text = self._create_static_text(text='Current Trial', x_position=0.1*self.width, y_position=0.45*self.height)        # Current trial text
-        self.remaining_time_text = self._create_static_text(text='Remaining Time', x_position=0.88*self.width, y_position=0.45*self.height)     # Remaining time text
+        self.update_static_texts()
 
     def update(self, state_dict):
         """
@@ -222,7 +222,16 @@ class Interface:
         \n
         Then checks if "X" button for quiting was pressed to terminate experiment
         """
+        # t = perf_counter()
+        # if t - self.prev_time > 0.5:  
+        #     mouse_x, mouse_y = pygame.mouse.get_pos()
+        #     self.prev_time = t
 
+        #     if mouse_x < self.edge_margin or mouse_x > self.width - self.edge_margin or mouse_y < self.edge_margin or mouse_y > self.height - self.edge_margin:
+        #         self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
+        #     else:
+        #         self.screen = pygame.display.set_mode((self.width, self.height), pygame.NOFRAME)
+    
         dot_pos = self.update(state_dict)
         self.draw(dot_pos)
 
@@ -232,6 +241,11 @@ class Interface:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.continue_experiment = False
+            # Handle window resize
+            elif event.type == pygame.VIDEORESIZE:
+                self.width, self.height = event.w, event.h
+                self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
+                self.update_static_texts()
 
 
         return self.continue_experiment                        
@@ -267,6 +281,12 @@ class Interface:
             y_position = self.height/2
         tR = t.get_rect(center = (x_position, y_position))
         return (t, tR)
+    
+    def update_static_texts(self):
+        self.UP_text = self._create_static_text(text="UP", y_position=self.offset + self.pas/2, font=1)                                         # Upper band text
+        self.DOWN_text = self._create_static_text(text="DOWN", y_position=self.height - self.offset - self.pas/2, font=1)                       # Lower band text
+        self.current_trial_text = self._create_static_text(text='Current Trial', x_position=0.1*self.width, y_position=0.45*self.height)        # Current trial text
+        self.remaining_time_text = self._create_static_text(text='Remaining Time', x_position=0.88*self.width, y_position=0.45*self.height)     # Remaining time text
     
     ### FOR RUNING GUI IN THREAD
     def thread_run(self, stop_event, cont_lock):
