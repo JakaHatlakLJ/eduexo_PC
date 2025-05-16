@@ -20,6 +20,7 @@ def initialize_state_dict(state_dict, experiment_config):
     # Initialize state_dict with values from experiment_config
     state_dict["trials_No"] = experiment_config["experiment"]["number_of_trials"]
     state_dict["control_trials_No"] = experiment_config["experiment"]["number_of_control_trials"]
+    state_dict["trial_states"] = experiment_config["experiment"]["define_trial_states"]
     state_dict["state_wait_time_range"] = experiment_config["experiment"]["state_wait_time_range"]
     state_dict["imagination_time_range"] = experiment_config["experiment"]["imagination_time_range"]
     state_dict["intention_time_range"] = experiment_config["experiment"]["intention_time_range"]

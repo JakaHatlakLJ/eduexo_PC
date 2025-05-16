@@ -131,8 +131,8 @@ class StateMachine:
                 self.current_state = StateMachine.RETURN_TO_CENTER
                 self.set_return_to_center(state_dict)
             elif time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
+                self.send_once = True
                 if self.i < len(self.events):
-                    self.current_state = StateMachine.WAITING
                     if self.synthetic_decoder:
                         self.correctness = self.correctness_list[self.i]
                         self.torque_profile = self.torque_profile_list[self.i]
@@ -140,49 +140,45 @@ class StateMachine:
                         self.i += 1
                         state_dict["trial"] = "UP"
                         state_dict["current_trial_No"] = self.i
-                        self.set_waiting(state_dict)
                     else:
                         self.i += 1
                         state_dict["trial"] = "DOWN"
                         state_dict["current_trial_No"] = self.i
+                    if "WAIT" in state_dict["trial_states"]:
+                        self.current_state = StateMachine.WAITING
                         self.set_waiting(state_dict)
+                    else:
+                        if "IMAGINE" in state_dict["trial_states"]:
+                            self.set_imagine(state_dict)
+                        else:
+                            if "INTEND" in state_dict["trial_states"]:
+                                self.set_intend(state_dict)
+                            else:
+                                self.set_go_to_band(state_dict)
+
 
         #### WHEN WAITING FOR START
         elif self.current_state == StateMachine.WAITING:
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
-                if state_dict["trial"] == "UP":
-                    state_dict["event_id"] = StateMachine.imagine_UP
-                    state_dict["event_type"] = "imagine_UP"
+                if "IMAGINE" in state_dict["trial_states"]:
+                    self.set_imagine(state_dict)
                 else:
-                    state_dict["event_type"] = "imagine_DOWN"
-                    state_dict["event_id"] = StateMachine.imagine_DOWN
-                self.current_state = StateMachine.IMAGINATION
-                self.set_imagine(state_dict)
+                    if "INTEND" in state_dict["trial_states"]:
+                        self.set_intend(state_dict)
+                    else:
+                        self.set_go_to_band(state_dict)
 
         #### WHEN IMAGINING MOVEMENT
         elif self.current_state == StateMachine.IMAGINATION:
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
-                if state_dict["trial"] == "UP":
-                    state_dict["event_type"] = "intend_UP"
-                    state_dict["event_id"] = StateMachine.intend_UP
+                if "INTEND" in state_dict["trial_states"]:
+                    self.set_intend(state_dict)
                 else:
-                    state_dict["event_type"] = "intend_DOWN"
-                    state_dict["event_id"] = StateMachine.intend_DOWN
-                self.current_state = StateMachine.INTENTION
-                self.set_intend(state_dict)
+                    self.set_go_to_band(state_dict)
 
         #### WHEN INTENDING MOVEMENT
         elif self.current_state == StateMachine.INTENTION:
-            self.send_once = True
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
-                if state_dict["trial"] == "UP":
-                    self.current_state = StateMachine.TRIAL_UP
-                    state_dict["event_type"] = "execute_UP"
-                    state_dict["event_id"] = StateMachine.execute_UP
-                else:
-                    self.current_state = StateMachine.TRIAL_DOWN
-                    state_dict["event_type"] = "execute_DOWN"
-                    state_dict["event_id"] = StateMachine.execute_DOWN
                 self.set_go_to_band(state_dict)
 
         #### WHEN "UP" TRIAL IS HAPPENING
@@ -394,11 +390,27 @@ class StateMachine:
         state_dict["color"] = "white"
 
     def set_imagine(self, state_dict):
+        self.current_state = StateMachine.IMAGINATION
+        if state_dict["trial"] == "UP":
+            state_dict["event_id"] = StateMachine.imagine_UP
+            state_dict["event_type"] = "imagine_UP"
+        else:
+            state_dict["event_type"] = "imagine_DOWN"
+            state_dict["event_id"] = StateMachine.imagine_DOWN
+
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = np.random.uniform(*state_dict["imagination_time_range"])  # s
         state_dict["color"] = "red"
 
     def set_intend(self, state_dict):
+        self.current_state = StateMachine.INTENTION
+        if state_dict["trial"] == "UP":
+            state_dict["event_type"] = "intend_UP"
+            state_dict["event_id"] = StateMachine.intend_UP
+        else:
+            state_dict["event_type"] = "intend_DOWN"
+            state_dict["event_id"] = StateMachine.intend_DOWN
+
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = np.random.uniform(*state_dict["intention_time_range"])  # s
         state_dict["color"] = "yellow"
@@ -414,6 +426,15 @@ class StateMachine:
         state_dict["main_text"] = "SUCCESS"
 
     def set_go_to_band(self, state_dict):
+        if state_dict["trial"] == "UP":
+            self.current_state = StateMachine.TRIAL_UP
+            state_dict["event_type"] = "execute_UP"
+            state_dict["event_id"] = StateMachine.execute_UP
+        else:
+            self.current_state = StateMachine.TRIAL_DOWN
+            state_dict["event_type"] = "execute_DOWN"
+            state_dict["event_id"] = StateMachine.execute_DOWN
+
         state_dict["trial_time"] = time()
         state_dict["color"] = "green3"
         
