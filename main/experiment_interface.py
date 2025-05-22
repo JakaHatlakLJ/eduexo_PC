@@ -31,7 +31,13 @@ class Interface:
         self.total_trials = state_dict["trials_No"] + 2 * state_dict["control_trials_No"]
 
         pygame.init()
-        self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
+        if state_dict["fullscreen"]:
+            info = pygame.display.Info()
+            self.width = info.current_w
+            self.height = info.current_h
+            self.screen = pygame.display.set_mode((self.width, self.height), pygame.NOFRAME | pygame.FULLSCREEN)
+        else:
+            self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
         self.edge_margin = 2
         self.clock = pygame.time.Clock()
         self.continue_experiment = True

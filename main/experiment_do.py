@@ -25,14 +25,13 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["imagination_time_range"] = experiment_config["experiment"]["imagination_time_range"]
     state_dict["intention_time_range"] = experiment_config["experiment"]["intention_time_range"]
     state_dict["timeout"] = state_dict["TO"] = experiment_config["experiment"]["trial_timeout"]
-    state_dict["width"] = experiment_config["experiment"]["screen_width"]
-    state_dict["height"] = experiment_config["experiment"]["screen_height"]
-    state_dict["maxP"] = experiment_config["experiment"]["maximum_arm_position_deg"]
-    state_dict["minP"] = experiment_config["experiment"]["minimum_arm_position_deg"]
+    state_dict["fullscreen"] = experiment_config["experiment"]["full_screen_mode"]
     state_dict["data_stream_interval"] = experiment_config["experiment"]["data_stream_interval"]
+    state_dict["torque_profiles"] = experiment_config["experiment"]["torque_profiles"]
     state_dict["synthetic_decoder"] = True if experiment_config["experiment"]["synthetic_decoder"] == 1 else False
     state_dict["correct_percantage"] = experiment_config["experiment"]["synthetic_decoder_correct_percantage"]
 
+    state_dict["exo_parameters"] = experiment_config["exo_parameters"]
 
     state_dict["enter_pressed"] = False
     state_dict["escape_pressed"] = False
@@ -95,15 +94,13 @@ if __name__ == "__main__":
     state_dict, predict = initialize_state_dict(state_dict, experiment_config)
 
     # Create an Inlet for incoming LSL Stream
-    LSL = LSLHandler(predict=predict)
+    LSL = LSLHandler(state_dict, predict=predict)
     interface = Interface(
         state_dict  =   state_dict,
-        width       =   state_dict["width"],
-        height      =   state_dict["height"],
-        maxP        =   state_dict["maxP"],
-        minP        =   state_dict["minP"]
+        maxP        =   state_dict["exo_parameters"]["maximum_arm_position_deg"],
+        minP        =   state_dict["exo_parameters"]["minimum_arm_position_deg"]
     )
-    state_machine = StateMachine(trial_No=state_dict["trials_No"], control_trial_No=state_dict["control_trials_No"], correct_percentage=state_dict["correct_percantage"])
+    state_machine = StateMachine(LSL, trial_No=state_dict["trials_No"], control_trial_No=state_dict["control_trials_No"], correct_percentage=state_dict["correct_percantage"])
 
     # Create a background thread for sending Data through LSL Stream
     stop_event = threading.Event()
@@ -129,8 +126,8 @@ if __name__ == "__main__":
             # if state_dict["needs_update"]:
             #     # Reinitialize state_dict and interface if update is needed
             #     state_dict = initialize_state_dict(state_dict, experiment_config)
-            #     interface = Interface(inlet=LSL.inlet, state_dict=state_dict, width=state_dict["width"], height=state_dict["height"], maxP=state_dict["maxP"], minP=state_dict["minP"])
-            #     state_machine = StateMachine(trial_No=state_dict["trials_No"], control_trial_No=state_dict["control_trials_No"], correct_percentage=state_dict["correct_percantage"])
+            #     interface = Interface(inlet=LSL.inlet, state_dict=state_dict, maxP=state_dict["exo_parameters"]["maximum_arm_position_deg"], minP=state_dict["exo_parameters"]["minimum_arm_position_deg"])
+            #     state_machine = StateMachine(LSL, trial_No=state_dict["trials_No"], control_trial_No=state_dict["control_trials_No"], correct_percentage=state_dict["correct_percantage"])
 
             pygame.event.clear()
             with the_lock:
@@ -138,7 +135,7 @@ if __name__ == "__main__":
 
             # Stream data and update state
             LSL.EXO_stream_in(state_dict)
-            experiment_over, state_dict = state_machine.maybe_update_state(state_dict, LSL.EXO_stream_out)
+            experiment_over, state_dict = state_machine.maybe_update_state(state_dict)
             continue_experiment = Interface.run(interface, state_dict)
             
             if "previous_state" not in state_dict:

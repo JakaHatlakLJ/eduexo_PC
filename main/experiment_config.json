@@ -2,21 +2,28 @@
     "experiment": {
         "number_of_trials": 30,
         "number_of_control_trials": 0,
-        "define_trial_states": ["WAIT","GO"],
+        "define_trial_states": ["wait","GO"],
         "state_wait_time_range": [1, 1],
         "imagination_time_range": [1, 1],
         "intention_time_range": [1, 1],
         "trial_timeout": 3,
-        "screen_width": 1560,
-        "screen_height": 900,
-        "maximum_arm_position_deg": 165,
-        "minimum_arm_position_deg": 55,
+        "full_screen_mode": 0,
         "data_stream_interval": 0.01,
+        "torque_profiles": ["triangular"],
         "synthetic_decoder": 1,
         "synthetic_decoder_correct_percantage": 0.5,
         "save_data": 0,
         "results_path": "./analysis/experiment_results",
         "frequency_path": "./analysis/frequency_data"
+    },
+    "exo_parameters":{
+        "maximum_arm_position_deg": 165,
+        "minimum_arm_position_deg": 55,
+        "max_torque_during_trial": 4,
+        "torque_limit": 8,
+        "duration_of_trials": 3,
+        "incorect_execution_positon_control": 1 ,
+        "incorrect_execution_time_ms": 500
     },
     "participant": {
         "age": 22,

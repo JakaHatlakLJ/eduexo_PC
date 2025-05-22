@@ -55,12 +55,13 @@ class StateMachine:
     PAUSE = 14
     EXIT = 15
 
-    def __init__(self, trial_No=10, control_trial_No=2, correct_percentage=0.7):
+    def __init__(self, LSL, trial_No=10, control_trial_No=2, correct_percentage=0.7):
         self.current_state = None
         self.torque_profile = 0
         self.trial_No = trial_No
         self.control_trial_No = control_trial_No
         self.correct_percentage = correct_percentage
+        self.LSL = LSL
         self.i = 0
         self.times = []
         self.correctness = None
@@ -68,13 +69,14 @@ class StateMachine:
         # Construct reverse state lookup
         all_variables = vars(StateMachine)
         self.reverse_state_lookup = {all_variables[name]: name for name in all_variables if isinstance(all_variables[name], int) and name.isupper()}
+        self.profiles_dict = {"trapezoid" : 0, "triangular" : 1, "sinusoidal" : 2, "rectangular" : 3, "smooth trapezoid" : 4}
+
     
-    def maybe_update_state(self, state_dict, exo_stream_out):
+    def maybe_update_state(self, state_dict: dict):
         """
         Updates the state of the experiment state machine based on the current state and state dictionary.
         Args:
             state_dict (dict): A dictionary containing the current state information and various flags.
-            exo_stream_out (function): A function to send data through the EXO "Instructions" stream.
         Returns:
             tuple: A tuple containing a boolean indicating if the experiment is over and the updated state dictionary.
         The state machine transitions through the following states:
@@ -144,14 +146,14 @@ class StateMachine:
                         self.i += 1
                         state_dict["trial"] = "DOWN"
                         state_dict["current_trial_No"] = self.i
-                    if "WAIT" in state_dict["trial_states"]:
+                    if "wait" in state_dict["trial_states"]:
                         self.current_state = StateMachine.WAITING
                         self.set_waiting(state_dict)
                     else:
-                        if "IMAGINE" in state_dict["trial_states"]:
+                        if "imagine" in state_dict["trial_states"]:
                             self.set_imagine(state_dict)
                         else:
-                            if "INTEND" in state_dict["trial_states"]:
+                            if "intend" in state_dict["trial_states"]:
                                 self.set_intend(state_dict)
                             else:
                                 self.set_go_to_band(state_dict)
@@ -160,10 +162,10 @@ class StateMachine:
         #### WHEN WAITING FOR START
         elif self.current_state == StateMachine.WAITING:
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
-                if "IMAGINE" in state_dict["trial_states"]:
+                if "imagine" in state_dict["trial_states"]:
                     self.set_imagine(state_dict)
                 else:
-                    if "INTEND" in state_dict["trial_states"]:
+                    if "intend" in state_dict["trial_states"]:
                         self.set_intend(state_dict)
                     else:
                         self.set_go_to_band(state_dict)
@@ -171,7 +173,7 @@ class StateMachine:
         #### WHEN IMAGINING MOVEMENT
         elif self.current_state == StateMachine.IMAGINATION:
             if time() - state_dict["state_start_time"] >= state_dict["state_wait_time"]:
-                if "INTEND" in state_dict["trial_states"]:
+                if "intend" in state_dict["trial_states"]:
                     self.set_intend(state_dict)
                 else:
                     self.set_go_to_band(state_dict)
@@ -187,12 +189,12 @@ class StateMachine:
                 if state_dict["activate_EXO"]:
                     if self.synthetic_decoder:
                         if self.send_once:
-                            exo_stream_out(state_dict, self.torque_profile, self.correctness)
+                            self.LSL.EXO_stream_out(state_dict, self.torque_profile, self.correctness)
                             self.send_once = False
                     else: 
                         if state_dict["prediction"] is not None:
-                            torque_profile = np.random.choice(a=[0, 1, 2, 3, 4],p=[0, 0.8, 0, 0.2, 0])
-                            exo_stream_out(state_dict, torque_profile)
+                            torque_profile = np.random.choice(a=state_dict["torque_profiles"])
+                            self.LSL.EXO_stream_out(state_dict, self.profiles_dict[torque_profile])
                             state_dict["prediction"] = None
             if state_dict["is_UP"]:
                 self.current_state = StateMachine.IN_UPPER_BAND
@@ -220,12 +222,12 @@ class StateMachine:
                 if state_dict["activate_EXO"]:
                     if self.synthetic_decoder:
                         if self.send_once:
-                            exo_stream_out(state_dict, self.torque_profile, self.correctness)
+                            self.LSL.EXO_stream_out(state_dict, self.torque_profile, self.correctness)
                             self.send_once = False 
                     else: 
                         if state_dict["prediction"] is not None:
                             torque_profile = np.random.choice(a=[0, 1, 2, 3, 4],p=[0, 0.8, 0, 0.2, 0])
-                            exo_stream_out(state_dict, torque_profile)
+                            self.LSL.EXO_stream_out(state_dict, torque_profile)
                             state_dict["prediction"] = None
             if state_dict["is_DOWN"]:
                 self.current_state = StateMachine.IN_LOWER_BAND
@@ -306,6 +308,7 @@ class StateMachine:
 
         #### STREAM BREAK 
         if state_dict["stream_online"] == False:
+            self.LSL.send_setup_data(state_dict["exo_parameters"])
             self.current_state = StateMachine.EXIT
             self.set_exit_or_error(state_dict, "firebrick", "STREAM OFFLINE", "Press ESC to exit or press ENTER when stream is online")
 
@@ -368,7 +371,7 @@ class StateMachine:
         if state_dict["synthetic_decoder"]:
             # if synthetic decoder will be used to decode events
             self.synthetic_decoder = True
-            self.generate_synthetic_trials(self.control_trial_No, self.trial_No, self.correct_percentage, update_instance=True)
+            self.generate_synthetic_trials(state_dict, self.control_trial_No, self.trial_No, self.correct_percentage, update_instance=True)
         else:
             # if "PredictionStream" will be used to decode events
             self.synthetic_decoder = False
@@ -498,7 +501,8 @@ class StateMachine:
         events = np.append(ones, zeros)
         executions = np.zeros(n, dtype=int)  # All incorrect
         torques = np.zeros(n, dtype=int) # All smth
-        trials = np.column_stack((events, executions, torques))
+        power = np.zeros(n, dtype=int) # All smth
+        trials = np.column_stack((events, executions, torques))#, power))
         np.random.shuffle(trials)
         return trials
 
@@ -523,7 +527,7 @@ class StateMachine:
             self.events = final_trials[:, 0]
         return final_trials[:, 0]
 
-    def generate_synthetic_trials(self, control_trial_No: int, trial_No: int, correct_percentage: float=0.7, update_instance: bool = False) -> np.ndarray:
+    def generate_synthetic_trials(self, state_dict: dict, control_trial_No: int, trial_No: int, correct_percentage: float=0.7, update_instance: bool = False) -> np.ndarray:
         """
         Generates a randomized trial structure with balanced correct/incorrect executions.
         
@@ -577,9 +581,10 @@ class StateMachine:
         executions = np.concatenate((correct_labels_up, incorrect_labels_up, correct_labels_down, incorrect_labels_down))
 
         torques = np.array([], dtype=int)
+
         for i in range(len(executions)):
-            torque_profile = np.random.choice(a=[0, 1, 2, 3, 4],p=[0, 0.8, 0, 0.2, 0])
-            torques = np.append(torques, torque_profile)            
+            torque_profile = np.random.choice(a=state_dict["torque_profiles"])
+            torques = np.append(torques, self.profiles_dict[torque_profile])            
 
         # Combine into trial matrix and shuffle
         trial_rules2 = np.column_stack((events, executions, torques))

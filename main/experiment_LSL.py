@@ -6,7 +6,7 @@ import logging
 
 class LSLHandler:
 
-    def __init__(self, receive: bool=True, send: bool=True, predict: bool=False):
+    def __init__(self, state_dict: dict, receive: bool=True, send: bool=True, predict: bool=False):
         """
         Initialize the LSLHandler class.
 
@@ -21,6 +21,18 @@ class LSLHandler:
         self.timestamp_g = local_clock()
 
         if send:
+            # Create LSL stream for sending instructions to EXO
+            info_SETUP_EXO = StreamInfo(
+                'EXO_SETUP',       # name
+                'SETUP',          # type
+                1,                       # channel_count
+                0,                       # nominal rate=0 for irregular streams
+                'string',               # channel format
+                'Eduexo_PC'              # source_id
+            )
+            self.outlet_SETUP_EXO = StreamOutlet(info_SETUP_EXO)
+            logger.info("Stream to Setup EXO is online...")
+
             # Create LSL stream for sending instructions to EXO
             info_EXO = StreamInfo(
                 'EXOInstructions',       # name
@@ -66,6 +78,13 @@ class LSLHandler:
                 logger.warning("No LSL stream found of name: 'PredictionStream'. Retrying...")
             self.predictions_inlet = StreamInlet(streams_p[0])
             logger.info("Receiving data from EXO...")
+
+        self.send_setup_data(state_dict["exo_parameters"])
+        
+    def send_setup_data(self, exo_config: dict):
+        setup_EXO_data = json.dumps(exo_config)
+        self.outlet_SETUP_EXO.push_sample([setup_EXO_data])
+        self.logger.info("Setup data sent to EXO.")
 
     def stream_events_data(self, stop_event: threading.Event, state_dict: dict, the_lock: threading.Lock):
         """
