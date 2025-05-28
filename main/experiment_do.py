@@ -18,18 +18,19 @@ def initialize_state_dict(state_dict, experiment_config):
         state_dict["state_wait_time"] = -1
 
     # Initialize state_dict with values from experiment_config
-    state_dict["trials_No"] = experiment_config["experiment"]["number_of_trials"]
-    state_dict["control_trials_No"] = experiment_config["experiment"]["number_of_control_trials"]
+    state_dict["real_time_prediction"] = True if experiment_config["experiment"]["real_time_classifier_prediction"] == 1 else False
     state_dict["trial_states"] = experiment_config["experiment"]["define_trial_states"]
+    state_dict["start_time_range"] = experiment_config["experiment"]["start_time_range"]
     state_dict["state_wait_time_range"] = experiment_config["experiment"]["state_wait_time_range"]
     state_dict["imagination_time_range"] = experiment_config["experiment"]["imagination_time_range"]
     state_dict["intention_time_range"] = experiment_config["experiment"]["intention_time_range"]
     state_dict["timeout"] = state_dict["TO"] = experiment_config["experiment"]["trial_timeout"]
-    state_dict["fullscreen"] = experiment_config["experiment"]["full_screen_mode"]
-    state_dict["data_stream_interval"] = experiment_config["experiment"]["data_stream_interval"]
-    state_dict["torque_profiles"] = experiment_config["experiment"]["torque_profiles"]
-    state_dict["synthetic_decoder"] = True if experiment_config["experiment"]["synthetic_decoder"] == 1 else False
-    state_dict["correct_percantage"] = experiment_config["experiment"]["synthetic_decoder_correct_percantage"]
+    state_dict["trial_conditions"] = experiment_config["experiment"]["conditions"]
+    state_dict["familiarization_trials_No"] = experiment_config["experiment"]["number_of_familiarization_trials"]
+    state_dict["end_control_trials"] = experiment_config["experiment"]["end_control_trials"]
+
+    state_dict["fullscreen"] = experiment_config["interface_data"]["full_screen_mode"]
+    state_dict["data_stream_interval"] = experiment_config["interface_data"]["data_stream_interval"]
 
     state_dict["exo_parameters"] = experiment_config["exo_parameters"]
 
@@ -41,16 +42,20 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["torque_profile"] = None
     
     prediction_stream = False
-    if not state_dict["synthetic_decoder"]:
+    if state_dict["real_time_prediction"]:
         state_dict["prediction"] = None
         prediction_stream = True
 
+    # Initialize state machine parameters
     state_dict["trial"] = ""
     state_dict["event_id"] = 99
     state_dict["event_type"] = ""
     state_dict["current_trial_No"] = 0
     state_dict["remaining_time"] = ""
     state_dict["avg_time"] = None
+    state_dict["familiarization_trial_No"] = 0
+    state_dict["trials_No"] = 0
+    state_dict["end_control_trial_No"] = 0 
 
     state_dict["current_position"] = 0
     state_dict["current_velocity"] = 0
@@ -79,10 +84,10 @@ if __name__ == "__main__":
     logger = logging.getLogger("Main")
 
     # Setup results logging
-    save_data = True if experiment_config["experiment"]["save_data"] == 1 else False
+    save_data = True if experiment_config["interface_data"]["save_data"] == 1 else False
     data_log = Logger(
-        experiment_config["experiment"]["results_path"],    # results path
-        experiment_config["experiment"]["frequency_path"],  # frequency path
+        experiment_config["interface_data"]["results_path"],    # results path
+        experiment_config["interface_data"]["frequency_path"],  # frequency path
         experiment_config["participant"]["id"],             # participant ID
         args.no_log,                                        # disable logging
         save_data                                           # save data
@@ -100,7 +105,7 @@ if __name__ == "__main__":
         maxP        =   state_dict["exo_parameters"]["maximum_arm_position_deg"],
         minP        =   state_dict["exo_parameters"]["minimum_arm_position_deg"]
     )
-    state_machine = StateMachine(LSL, trial_No=state_dict["trials_No"], control_trial_No=state_dict["control_trials_No"], correct_percentage=state_dict["correct_percantage"])
+    state_machine = StateMachine(LSL)
 
     # Create a background thread for sending Data through LSL Stream
     stop_event = threading.Event()
@@ -111,7 +116,7 @@ if __name__ == "__main__":
         daemon=True
     )
     streamer_thread.start()
-    if not state_dict["synthetic_decoder"]:
+    if state_dict["real_time_prediction"]:
         prediction_thread = threading.Thread(
             target=LSL.get_predictions,
             args=(stop_event, state_dict, True),
@@ -127,7 +132,7 @@ if __name__ == "__main__":
             #     # Reinitialize state_dict and interface if update is needed
             #     state_dict = initialize_state_dict(state_dict, experiment_config)
             #     interface = Interface(inlet=LSL.inlet, state_dict=state_dict, maxP=state_dict["exo_parameters"]["maximum_arm_position_deg"], minP=state_dict["exo_parameters"]["minimum_arm_position_deg"])
-            #     state_machine = StateMachine(LSL, trial_No=state_dict["trials_No"], control_trial_No=state_dict["control_trials_No"], correct_percentage=state_dict["correct_percantage"])
+            #     state_machine = StateMachine(LSL)
 
             pygame.event.clear()
             with the_lock:

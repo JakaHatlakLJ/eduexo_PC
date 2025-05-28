@@ -1,29 +1,36 @@
 {
     "experiment": {
-        "number_of_trials": 30,
-        "number_of_control_trials": 0,
-        "define_trial_states": ["wait","GO"],
+        "real_time_classifier_prediction": 0,
+        "define_trial_states": ["GO"],
+        "start_time_range" : [1, 1.5],
         "state_wait_time_range": [1, 1],
-        "imagination_time_range": [1, 1],
+        "imagination_time_range": [3, 3],
         "intention_time_range": [1, 1],
         "trial_timeout": 3,
-        "full_screen_mode": 0,
-        "data_stream_interval": 0.01,
-        "torque_profiles": ["triangular"],
-        "synthetic_decoder": 1,
-        "synthetic_decoder_correct_percantage": 0.5,
-        "save_data": 0,
-        "results_path": "./analysis/experiment_results",
-        "frequency_path": "./analysis/frequency_data"
+        "conditions": {
+            "1": ["assist", 6, "triangular", 1],
+            "2": ["oppose", 6, "sinusoidal", 0.3],
+            "3": ["assist", 6, "random", 10]
+        },
+        "number_of_familiarization_trials": 0,
+        "end_control_trials": 0
     },
     "exo_parameters":{
         "maximum_arm_position_deg": 165,
         "minimum_arm_position_deg": 55,
-        "max_torque_during_trial": 4,
+        "center_offset_deg": 2,
+        "edge_offset_deg": 15,
         "torque_limit": 8,
         "duration_of_trials": 3,
-        "incorect_execution_positon_control": 1 ,
+        "incorect_execution_positon_control": 1,
         "incorrect_execution_time_ms": 500
+    },
+    "interface_data": {
+        "full_screen_mode": 0,
+        "data_stream_interval": 0.01,
+        "save_data": 0,
+        "results_path": "./analysis/experiment_results",  
+        "frequency_path": "./analysis/frequency_data"
     },
     "participant": {
         "age": 22,

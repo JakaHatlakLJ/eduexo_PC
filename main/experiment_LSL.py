@@ -21,38 +21,38 @@ class LSLHandler:
         self.timestamp_g = local_clock()
 
         if send:
-            # Create LSL stream for sending instructions to EXO
+            # Create LSL stream for sending SET UP instructions to EXO
             info_SETUP_EXO = StreamInfo(
-                'EXO_SETUP',       # name
-                'SETUP',          # type
-                1,                       # channel_count
-                0,                       # nominal rate=0 for irregular streams
+                'EXO_SETUP',            # name
+                'SETUP',                # type
+                1,                      # channel_count
+                0,                      # nominal rate=0 for irregular streams
                 'string',               # channel format
-                'Eduexo_PC'              # source_id
+                'Eduexo_PC'             # source_id
             )
             self.outlet_SETUP_EXO = StreamOutlet(info_SETUP_EXO)
             logger.info("Stream to Setup EXO is online...")
 
             # Create LSL stream for sending instructions to EXO
             info_EXO = StreamInfo(
-                'EXOInstructions',       # name
-                'Instructions',          # type
-                3,                       # channel_count
-                0,                       # nominal rate=0 for irregular streams
-                'float32',               # channel format
-                'Eduexo_PC'              # source_id
+                'EXOInstructions',      # name
+                'Instructions',         # type
+                4,                      # channel_count
+                0,                      # nominal rate=0 for irregular streams
+                'float32',              # channel format
+                'Eduexo_PC'             # source_id
             )
             self.outlet_EXO = StreamOutlet(info_EXO)
             logger.info("Stream to EXO is online...")
 
             # Create LSL stream for sending events and motor data to classifier
             info_class = StreamInfo(
-                'SyntheticEvents',       # name
-                'Events',                # type
-                1,                       # channel_count
-                0,                       # nominal rate=0 for irregular streams
-                'string',                # channel format
-                'Eduexo_PC'              # source_id
+                'SyntheticEvents',      # name
+                'Events',               # type
+                1,                      # channel_count
+                0,                      # nominal rate=0 for irregular streams
+                'string',               # channel format
+                'Eduexo_PC'             # source_id
             )
             self.outlet_classifier = StreamOutlet(info_class)
             logger.info("Stream for events is online...")
@@ -177,7 +177,7 @@ class LSLHandler:
             state_dict["current_torque"] = round(sample[2], 5)
             state_dict["exo_execution"] = sample[3]
 
-    def EXO_stream_out(self, state_dict: dict, torque_profile: int, correctness: int = None):
+    def EXO_stream_out(self, state_dict: dict, torque_profile: int = 1, torque_magnitude: float = 1, correctness: int = 1):
         """
         Send a TorqueProfile, direction, and Correctness once every time a new event happens.
         
@@ -185,19 +185,7 @@ class LSLHandler:
         :param torque_profile: Torque profile to be sent.
         :param correctness: Correctness of the execution.
         """
-        if state_dict["synthetic_decoder"]:
-            # Determine direction based on trial type and correctness
-            if state_dict["trial"] == "UP":
-                if correctness == 1:
-                    direction = 10
-                else:
-                    direction = 20
-            else:
-                if correctness == 1:
-                    direction = 20
-                else:
-                    direction = 10
-        else:
+        if state_dict["real_time_prediction"]:
             if state_dict["prediction"] == "UP":
                 direction = 10
                 if state_dict["trial"] == "UP":
@@ -210,14 +198,26 @@ class LSLHandler:
                     correctness = 0
                 else:
                     correctness = 1
+        else:
+            # Determine direction based on trial type and correctness
+            if state_dict["trial"] == "UP":
+                if correctness == 1:
+                    direction = 10
+                else:
+                    direction = 20
+            else:
+                if correctness == 1:
+                    direction = 20
+                else:
+                    direction = 10
 
         # Send instructions data to EXO
-        instructions_data = [int(torque_profile), int(correctness), int(direction)]
+        instructions_data = [int(torque_profile), int(correctness), int(direction), float(torque_magnitude)]
+        print(instructions_data)
         self.outlet_EXO.push_sample(instructions_data)
-        # print(instructions_data)
 
         # Map torque profile to its corresponding name
-        t_profile_dict = {0: "trapezoid", 1: "triangular", 2: "sinusoide", 3: "rectangular_pulse", 4: "smoothed_trapezoid"}
+        t_profile_dict = {0: "trapezoid", 1: "triangular", 2: "sinusoide", 3: "rectangular", 4: "smoothed_trapezoid"}
 
         state_dict["torque_profile"] = t_profile_dict[torque_profile]
         state_dict["correctness"] = correctness
@@ -229,7 +229,7 @@ class LSLHandler:
             while not stop_event.is_set():
                 self.predictions_inlet.flush()
                 recieved = False
-                while state_dict["current_state"] in {"TRIAL_UP", "TRIAL_DOWN"}:
+                while state_dict["current_state"] in {"IMAGINATION", "INTENTION", "TRIAL_UP", "TRIAL_DOWN"}:
                     current_time = perf_counter()
                     if current_time - previous_time >= 1/200:
                         sample, timestamp = self.predictions_inlet.pull_sample(timeout=0.1)

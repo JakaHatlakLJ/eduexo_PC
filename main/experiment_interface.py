@@ -8,7 +8,7 @@ class Interface:
     Class for handling GUI for EDUEXO-EEG experiment:
     """
 
-    def __init__(self, state_dict = {}, width=1280, height=820, offset=100, pas=80, maxP=180, minP=55):
+    def __init__(self, state_dict = {}, width=1280, height=820, band_offset=60, pas=60, maxP=180, minP=55):
         """
         Initializes pygame and all necessary parameters:
         
@@ -22,13 +22,13 @@ class Interface:
         """
         self.width = width
         self.height = height
-        self.offset = offset
+        self.band_offset = band_offset
         self.pas = pas
+        self.dot_size = 10
         self.maxP = maxP
         self.minP = minP
 
         self.state_dict = state_dict
-        self.total_trials = state_dict["trials_No"] + 2 * state_dict["control_trials_No"]
 
         pygame.init()
         if state_dict["fullscreen"]:
@@ -65,19 +65,19 @@ class Interface:
         else:
             loc = self.state_dict["current_position"]
 
-        self.loc = (loc / (self.maxP - self.minP) - self.minP / (self.maxP - self.minP)) * (self.height-2*self.offset) + self.offset        # linear transformation of EXO angle to dot position on screen
+        self.loc = (loc / (self.maxP - self.minP) - self.minP / (self.maxP - self.minP)) * (self.height - 2 * self.band_offset) + self.band_offset        # linear transformation of EXO angle to dot position on screen
 
-        if self.loc < self.height/2 + 6 and self.loc > self.height/2 - 6:
+        if self.loc < self.height/2 + self.dot_size/2 + 1 and self.loc > self.height/2 - self.dot_size/2 - 1:
             self.state_dict["in_the_middle"] = True
         else:
             self.state_dict["in_the_middle"] = False
 
-        if self.loc < 0.9 * self.pas + self.offset:
+        if self.loc < 0.9 * self.pas + self.band_offset:
             self.state_dict["is_UP"] = True
         else:
             self.state_dict["is_UP"] = False
 
-        if self.loc > self.height - 0.9 * self.pas - self.offset:
+        if self.loc > self.height - 0.9 * self.pas - self.band_offset:
             self.state_dict["is_DOWN"] = True
         else:
             self.state_dict["is_DOWN"] = False
@@ -125,10 +125,10 @@ class Interface:
             else:
                 if self.state_dict["avg_time"] == 0:
                     time = "-- sec"
-                    number = f'0/{str(self.total_trials)}'
+                    number = f'0/{str(self.state_dict["trials_No"])}'
                 else:
                     time = f'{str(self.state_dict["avg_time"])} sec'
-                    number =f'{str(self.state_dict["succ_trials"])}/{str(self.total_trials)}'
+                    number =f'{str(self.state_dict["succ_trials"])}/{str(self.state_dict["trials_No"])}'
 
                 self._draw_dynamic_text(text=self.state_dict["main_text"], y_position=0.3*self.height, font=1)                                  # Status text
                 self._draw_dynamic_text(text=self.state_dict["sub_text"], x_position=self.width/2 - 10, y_position=0.4*self.height, font=4)     # Procedure instructions
@@ -140,8 +140,8 @@ class Interface:
         #### ALL THE OTHER STATES
         #### BAND COLORING
         else:
-            p11 = pygame.Vector2(0, self.offset + self.pas/2)
-            p12 = pygame.Vector2(self.width, self.offset + self.pas/2)
+            p11 = pygame.Vector2(0, self.band_offset + self.pas/2)
+            p12 = pygame.Vector2(self.width, self.band_offset + self.pas/2)
             if self.state_dict["trial"] == "UP":
                 if self.state_dict["is_UP"]:
                     color = "green"    
@@ -153,8 +153,8 @@ class Interface:
                     color = "black"
                 pygame.draw.line(self.screen, color, p11, p12, width = self.pas)
 
-            p21 = pygame.Vector2(0, self.height - self.offset - self.pas/2)
-            p22 = pygame.Vector2(self.width, self.height - self.offset - self.pas/2)
+            p21 = pygame.Vector2(0, self.height - self.band_offset - self.pas/2)
+            p22 = pygame.Vector2(self.width, self.height - self.band_offset - self.pas/2)
             if self.state_dict["trial"] == "DOWN":
                 if self.state_dict["is_DOWN"]:
                     color = "green"    
@@ -173,16 +173,16 @@ class Interface:
                     pygame.draw.line(self.screen, "red", p21, p22, width = self.pas)
 
             #### DRAW BANDS 
-            pygame.draw.line(self.screen, "white", (0, self.offset), (self.width, self.offset))                                                         # Top line of UPPER BAND
-            pygame.draw.line(self.screen, "white", (0, self.offset + self.pas), (self.width, self.offset + self.pas))                                   # Bottom line of UPPER BAND
-            pygame.draw.line(self.screen, "white", (0, self.height-self.offset), (self.width, self.height-self.offset))                                 # Bottom line of LOWER BAND
-            pygame.draw.line(self.screen, "white", (0, self.height - self.offset - self.pas), (self.width, self.height - self.offset - self.pas))       # Top line of LOWER BAND 
+            pygame.draw.line(self.screen, "white", (0, self.band_offset), (self.width, self.band_offset))                                                         # Top line of UPPER BAND
+            pygame.draw.line(self.screen, "white", (0, self.band_offset + self.pas), (self.width, self.band_offset + self.pas))                                   # Bottom line of UPPER BAND
+            pygame.draw.line(self.screen, "white", (0, self.height-self.band_offset), (self.width, self.height-self.band_offset))                                 # Bottom line of LOWER BAND
+            pygame.draw.line(self.screen, "white", (0, self.height - self.band_offset - self.pas), (self.width, self.height - self.band_offset - self.pas))       # Top line of LOWER BAND 
 
             #### DRAW REMAINING TIME
             self._draw_dynamic_text(text=str(self.state_dict["remaining_time"]), x_position=0.88*self.width, y_position=0.55*self.height)
 
             #### DRAW TRIAL COUNTER
-            self._draw_dynamic_text(text=f'{str(self.state_dict["current_trial_No"])}/{str(self.total_trials)}', x_position=0.1*self.width, y_position=0.55*self.height)
+            self._draw_dynamic_text(text=f'{str(self.state_dict["current_trial_No"])}/{str(self.state_dict["trials_No"])}', x_position=0.1*self.width, y_position=0.55*self.height)
 
             #### DRAW ALL CONSTANT TEXTs
             self.screen.blit(*self.UP_text)
@@ -202,7 +202,7 @@ class Interface:
             #### RETURN TO CENTER TEXT AND TARGET CIRCLE
             if self.state_dict["current_state"] in {"RETURN_TO_CENTER", "IN_MIDDLE_CIRCLE", "WAITING", "IMAGINATION", "INTENTION"}:
                 self._draw_dynamic_text(text=self.state_dict["main_text"], color="white", y_position=0.4*self.height, font=1)        
-                pygame.draw.circle(self.screen, "white", (self.width/2, self.height/2), 17, width=2)              
+                pygame.draw.circle(self.screen, "white", (self.width/2, self.height/2), 1.3*self.dot_size + 3, width=2)              
 
             #### SUCCESSFUL TRIAL SIGN
             elif self.state_dict["current_state"] in {"IN_UPPER_BAND", "IN_LOWER_BAND"}:
@@ -218,7 +218,7 @@ class Interface:
                     self._draw_dynamic_text(text="X", x_position=self.width/2, y_position=self.height/2, font=3)
 
             #### DRAW THE MAIN DOT AT THE END
-            pygame.draw.circle(self.screen, "white", dot_pos, 10)
+            pygame.draw.circle(self.screen, "white", dot_pos, self.dot_size)
 
     def run(self, state_dict):
         """
@@ -250,6 +250,9 @@ class Interface:
             # Handle window resize
             elif event.type == pygame.VIDEORESIZE:
                 self.width, self.height = event.w, event.h
+                self.band_offset = int(round(60/820 * self.height))
+                self.pas = int(round(60/820 * self.height))
+                self.dot_size = int(round(6/820 * self.height + 4))
                 self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
                 self.update_static_texts()
 
@@ -289,8 +292,8 @@ class Interface:
         return (t, tR)
     
     def update_static_texts(self):
-        self.UP_text = self._create_static_text(text="UP", y_position=self.offset + self.pas/2, font=1)                                         # Upper band text
-        self.DOWN_text = self._create_static_text(text="DOWN", y_position=self.height - self.offset - self.pas/2, font=1)                       # Lower band text
+        self.UP_text = self._create_static_text(text="UP", y_position=self.band_offset + self.pas/2, font=1)                                         # Upper band text
+        self.DOWN_text = self._create_static_text(text="DOWN", y_position=self.height - self.band_offset - self.pas/2, font=1)                       # Lower band text
         self.current_trial_text = self._create_static_text(text='Current Trial', x_position=0.1*self.width, y_position=0.45*self.height)        # Current trial text
         self.remaining_time_text = self._create_static_text(text='Remaining Time', x_position=0.88*self.width, y_position=0.45*self.height)     # Remaining time text
     
