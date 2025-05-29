@@ -39,7 +39,8 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["space_pressed"] = False
     state_dict["stream_online"] = True
     state_dict["current_state"] = None
-    state_dict["torque_profile"] = None
+    state_dict["torque_profile"] = "None"
+    state_dict["torque_magnitude"] = "None"
     
     prediction_stream = False
     if state_dict["real_time_prediction"]:
@@ -60,6 +61,7 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["current_position"] = 0
     state_dict["current_velocity"] = 0
     state_dict["current_torque"] = 0
+    state_dict["demanded_torque"] = 0
 
     # state_dict["needs_update"] = False # This is not used in the current version, if needed, uncomment the lines in the main loop and signal the update
     state_dict["activate_EXO"] = False

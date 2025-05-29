@@ -19,6 +19,8 @@ class LSLHandler:
         self.logger = logger
         self.logger_predictions = logging.getLogger("Predictions")
         self.timestamp_g = local_clock()
+        self.missed_samples = 0
+        self.previous_time = perf_counter()
 
         if send:
             # Create LSL stream for sending SET UP instructions to EXO
@@ -130,11 +132,13 @@ class LSLHandler:
                     event_id = state_dict["event_id"]
                     event_type = state_dict["event_type"]
                     torque_profile = state_dict["torque_profile"]
+                    torque_magnitude = state_dict["torque_magnitude"]
                     event_data = {
                         'Sample_Type': 'event',
                         'Event_ID': event_id,
                         'Event_Type': event_type,
                         'TorqueProfile': torque_profile,
+                        'TorqueMagnitude': torque_magnitude,
                         'Event_Timestamp': self.timestamp
                     }
                     event_json_str = json.dumps(event_data)
@@ -155,29 +159,30 @@ class LSLHandler:
         :param state_dict: Dictionary containing the current state information.
         """
         # Receive data from EXO
-        self.inlet.flush()  
-        sample, timestamp = self.inlet.pull_sample(timeout=3)
-        
+        current_time = perf_counter()
+        self.inlet.flush()    
+        sample, timestamp = self.inlet.pull_sample(timeout=0.1)
+
         if sample is None:
-            try:
-                info = self.inlet.info(timeout=0.1)  # May timeout if stream is lost
-                if info is None:
-                    raise TimeoutError  # Force handling below
-            except TimeoutError:
-                self.logger.error("Stream lost!")
-                state_dict["current_position"] = None
-                state_dict["stream_online"] = False
-            except Exception as e:
-                self.logger.error(f"Unexpected error checking stream info: {e}")
-                state_dict["stream_online"] = False  # Assume lost on unexpected error
+            self.missed_samples += 1
+            # Consider stream offline if we miss N consecutive samples
+            if self.missed_samples >= 5:
+                if current_time - self.previous_time >= 3:
+                    self.logger.error("Stream lost! Trying to reconnect...")
+                    state_dict["current_position"] = None
+                    state_dict["stream_online"] = False
+                    self.previous_time = current_time
+                    self.send_setup_data(state_dict["exo_parameters"])
         else:
+            self.missed_samples = 0  # Reset counter if we got a sample
             state_dict["stream_online"] = True
             state_dict["current_position"] = round(sample[0], 5)
             state_dict["current_velocity"] = round(sample[1], 5)
             state_dict["current_torque"] = round(sample[2], 5)
             state_dict["exo_execution"] = sample[3]
+            state_dict["demanded_torque"] = sample[4]
 
-    def EXO_stream_out(self, state_dict: dict, torque_profile: int = 1, torque_magnitude: float = 1, correctness: int = 1):
+    def EXO_stream_out(self, state_dict: dict = None, torque_profile: int = 1, torque_magnitude: float = 1, correctness: int = 1, trial_over = False, experiment_over = False):
         """
         Send a TorqueProfile, direction, and Correctness once every time a new event happens.
         
@@ -185,42 +190,44 @@ class LSLHandler:
         :param torque_profile: Torque profile to be sent.
         :param correctness: Correctness of the execution.
         """
-        if state_dict["real_time_prediction"]:
-            if state_dict["prediction"] == "UP":
-                direction = 10
-                if state_dict["trial"] == "UP":
-                    correctness = 1
-                else:
-                    correctness = 0
-            else:
-                direction = 20
-                if state_dict["trial"] == "UP":
-                    correctness = 0
-                else:
-                    correctness = 1
+        if experiment_over:
+            direction = 99
+        elif trial_over:
+            direction =  0
+            torque_magnitude = 0
         else:
-            # Determine direction based on trial type and correctness
-            if state_dict["trial"] == "UP":
-                if correctness == 1:
+            if state_dict["real_time_prediction"]:
+                if state_dict["trial"] == "UP":
                     direction = 10
+                    if state_dict["prediction"] == "UP":
+                        correctness = 1
+                    else:
+                        correctness = 0
                 else:
                     direction = 20
+                    if state_dict["prediction"] == "UP":
+                        correctness = 0
+                    else:
+                        correctness = 1
             else:
-                if correctness == 1:
-                    direction = 20
-                else:
+                # Determine direction based on trial type and correctness
+                if state_dict["trial"] == "UP":
                     direction = 10
+                else:
+                    direction = 20
 
         # Send instructions data to EXO
         instructions_data = [int(torque_profile), int(correctness), int(direction), float(torque_magnitude)]
-        print(instructions_data)
+        # print(instructions_data)
         self.outlet_EXO.push_sample(instructions_data)
 
-        # Map torque profile to its corresponding name
-        t_profile_dict = {0: "trapezoid", 1: "triangular", 2: "sinusoide", 3: "rectangular", 4: "smoothed_trapezoid"}
+        if not experiment_over or not trial_over:
+            # Map torque profile to its corresponding name
+            t_profile_dict = {0: "trapezoid", 1: "triangular", 2: "sinusoide", 3: "rectangular", 4: "smoothed_trapezoid"}
 
-        state_dict["torque_profile"] = t_profile_dict[torque_profile]
-        state_dict["correctness"] = correctness
+            state_dict["torque_profile"] = t_profile_dict[torque_profile]
+            state_dict["torque_magnitude"] = float(torque_magnitude)
+            state_dict["correctness"] = correctness
 
     def get_predictions(self, stop_event: threading.Event, state_dict: dict = None, verbose: bool=False):
             if state_dict is None:

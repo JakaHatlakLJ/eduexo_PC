@@ -8,22 +8,22 @@
         "intention_time_range": [1, 1],
         "trial_timeout": 3,
         "conditions": {
-            "1": ["assist", 6, "triangular", 1],
-            "2": ["oppose", 6, "sinusoidal", 0.3],
-            "3": ["assist", 6, "random", 10]
+            "1": ["assist", 2, "sinusoidal", 4],
+            "2": ["oppose", 2, "triangular", 1.7],
+            "3": ["assist", 2, "sinusoidal", 1],
+            "4": ["oppose", 2, "triangular", 0.3]
         },
         "number_of_familiarization_trials": 0,
         "end_control_trials": 0
     },
     "exo_parameters":{
-        "maximum_arm_position_deg": 165,
+        "maximum_arm_position_deg": 180,
         "minimum_arm_position_deg": 55,
-        "center_offset_deg": 2,
-        "edge_offset_deg": 15,
+        "center_offset_deg": 3,
+        "edge_offset_deg": 0,
         "torque_limit": 8,
-        "duration_of_trials": 3,
-        "incorect_execution_positon_control": 1,
-        "incorrect_execution_time_ms": 500
+        "incorect_execution_time_control": 0,
+        "incorrect_execution_time_ms": 1500
     },
     "interface_data": {
         "full_screen_mode": 0,

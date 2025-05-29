@@ -122,7 +122,7 @@ class Logger:
             self.data_dict = {key:0 for key in self.data_dict}
         
         self.data_dict["current_torque"] = state_dict["current_torque"]
-        self.data_dict["demanded_torque"] = state_dict["current_torque"] + round(random.uniform(-0.5,0.5), 3)
+        self.data_dict["demanded_torque"] = state_dict["demanded_torque"]
         self.data_dict["current_position"] = state_dict["current_position"]
         self.data_dict["current_velocity"] = state_dict["current_velocity"]
         self.data_dict["event_id"] = state_dict["event_id"]

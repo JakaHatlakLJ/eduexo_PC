@@ -64,7 +64,8 @@ class StateMachine:
         self.LSL = LSL
         self.i = 0
         self.times = []
-        self.send_once = True        
+        self.send_once = True      
+        self.stream_break = False  
         # Construct reverse state lookup
         all_variables = vars(StateMachine)
         self.reverse_state_lookup = {all_variables[name]: name for name in all_variables if isinstance(all_variables[name], int) and name.isupper()}
@@ -292,8 +293,12 @@ class StateMachine:
 
         #### WHEN EXITING
         if self.current_state == StateMachine.EXIT and state_dict["stream_online"] == True:
+            if self.stream_break == True:
+                self.logger.info("Reconnected!")
+                self.stream_break = False
             if state_dict["escape_pressed"]:
                 experiment_over = True
+                self.LSL.EXO_stream_out(experiment_over=True)
             elif state_dict["enter_pressed"]:
                 self.i = 0
                 self.times = []
@@ -309,8 +314,8 @@ class StateMachine:
 
         #### STREAM BREAK 
         if state_dict["stream_online"] == False:
-            self.LSL.send_setup_data(state_dict["exo_parameters"])
             self.current_state = StateMachine.EXIT
+            self.stream_break = True
             self.set_exit_or_error(state_dict, "firebrick", "STREAM OFFLINE", "Press ESC to exit or press ENTER when stream is online")
 
         #### WHILE TRIAL IS IN PROGRESS
@@ -337,6 +342,7 @@ class StateMachine:
             state_dict["trial_in_progress"] = False
             state_dict["remaining_time"] = ""
             state_dict["torque_profile"] = "None"
+            state_dict["torque_magnitude"] = "None"
 
         if self.current_state is not None:
             state_dict["current_state"] = self.reverse_state_lookup[self.current_state]             
@@ -437,18 +443,21 @@ class StateMachine:
     def set_success(self, state_dict):
         state_dict["event_type"] = "SUCCESS"
         state_dict["event_id"] = StateMachine.success    
+        self.LSL.EXO_stream_out(state_dict, trial_over = True)
 
     def set_failure(self, state_dict):
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = 1.5
         state_dict["main_text"] = state_dict["event_type"] = "FAIL"
         state_dict["event_id"] = StateMachine.failure  
+        self.LSL.EXO_stream_out(state_dict, trial_over = True)
 
     def set_trial_timeout(self, state_dict):
         state_dict["state_start_time"] = time()
         state_dict["state_wait_time"] = 1.5
         state_dict["main_text"] = state_dict["event_type"] = "TIMEOUT"
         state_dict["event_id"] = StateMachine.timeout 
+        self.LSL.EXO_stream_out(state_dict, trial_over = True)
 
     def set_trial_termination(self, state_dict):        
         state_dict["state_start_time"] = time()
