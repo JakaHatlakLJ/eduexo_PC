@@ -349,7 +349,7 @@ class StateMachine:
         else:
             state_dict["current_state"] = "None"
 
-        if state_dict["familiarization_trial_No"] < self.i <= state_dict["trials_No"] - state_dict["end_control_trial_No:"]:
+        if state_dict["familiarization_trial_No"] < self.i <= state_dict["trials_No"] - state_dict["end_control_trials"]:
             state_dict["activate_EXO"] = True
         else:
             state_dict["activate_EXO"] = False
@@ -550,25 +550,6 @@ class StateMachine:
             else:
                 self.logger.error(f"Invalid assistance type: {assistance} in condition {condition_id}.")
                 return None  # Invalid assistance type
-            
-            # # Compute number of correct/incorrect trials
-            # incorrect_count = int(np.round(condition_trial_No * (1-correct_percentage)))
-            # correct_count = condition_trial_No - incorrect_count   
-
-            # # Distribute correct/incorrect executions evenly among UPs and DOWNs
-            # correct_down = correct_count // 2
-            # correct_up = correct_count - correct_down
-            # incorrect_up = incorrect_count // 2
-            # incorrect_down = incorrect_count - incorrect_up
-
-            # # Create execution labels
-            # correct_labels_up = np.ones(int(correct_up), dtype=int)
-            # correct_labels_down = np.ones(int(correct_down), dtype=int)
-            # incorrect_labels_up = np.zeros(int(incorrect_up), dtype=int)
-            # incorrect_labels_down = np.zeros(int(incorrect_down), dtype=int)
-            
-            # # Merge correct and incorrect labels while keeping balance
-            # executions = np.concatenate((correct_labels_up, incorrect_labels_up, correct_labels_down, incorrect_labels_down))
 
             # Create torque profiles
             if torque_profile == "random":
@@ -596,10 +577,7 @@ class StateMachine:
         state_dict["familiarization_trial_No"] = familiarization_trials_rules.shape[0]
 
         if state_dict["end_control_trials"] != 0:
-            end_control_trial_rules = self.generate_familiarization_trials(state_dict["familiarization_trials_No"])
-            state_dict["end_control_trial_No:"] = end_control_trial_rules.shape[0]
-        else:    
-            state_dict["end_control_trial_No:"] = 0
+            end_control_trial_rules = self.generate_familiarization_trials(state_dict["end_control_trials"])
 
         # --- MAIN TRIALS (VARYING EXECUTION CORRECTNESS, TORQUE PROFILE AND TORQUE LEVEL) ---
         all_condition_trials = []

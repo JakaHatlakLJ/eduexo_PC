@@ -228,16 +228,7 @@ class Interface:
         \n
         Then checks if "X" button for quiting was pressed to terminate experiment
         """
-        # t = perf_counter()
-        # if t - self.prev_time > 0.5:  
-        #     mouse_x, mouse_y = pygame.mouse.get_pos()
-        #     self.prev_time = t
-
-        #     if mouse_x < self.edge_margin or mouse_x > self.width - self.edge_margin or mouse_y < self.edge_margin or mouse_y > self.height - self.edge_margin:
-        #         self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
-        #     else:
-        #         self.screen = pygame.display.set_mode((self.width, self.height), pygame.NOFRAME)
-    
+   
         dot_pos = self.update(state_dict)
         self.draw(dot_pos)
 
@@ -324,8 +315,6 @@ class Interface:
             except Exception as e:
                 print(e) 
 
-
-        
 if __name__ == "__main__":
     interface = Interface()
     interface.state_dict["event_type"] = None

@@ -27,7 +27,7 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["timeout"] = state_dict["TO"] = experiment_config["experiment"]["trial_timeout"]
     state_dict["trial_conditions"] = experiment_config["experiment"]["conditions"]
     state_dict["familiarization_trials_No"] = experiment_config["experiment"]["number_of_familiarization_trials"]
-    state_dict["end_control_trials"] = experiment_config["experiment"]["end_control_trials"]
+    state_dict["end_control_trials"] = experiment_config["experiment"]["number_of_end_control_trials"]
 
     state_dict["fullscreen"] = experiment_config["interface_data"]["full_screen_mode"]
     state_dict["data_stream_interval"] = experiment_config["interface_data"]["data_stream_interval"]
@@ -56,7 +56,6 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["avg_time"] = None
     state_dict["familiarization_trial_No"] = 0
     state_dict["trials_No"] = 0
-    state_dict["end_control_trial_No"] = 0 
 
     state_dict["current_position"] = 0
     state_dict["current_velocity"] = 0
@@ -89,7 +88,6 @@ if __name__ == "__main__":
     save_data = True if experiment_config["interface_data"]["save_data"] == 1 else False
     data_log = Logger(
         experiment_config["interface_data"]["results_path"],    # results path
-        experiment_config["interface_data"]["frequency_path"],  # frequency path
         experiment_config["participant"]["id"],             # participant ID
         args.no_log,                                        # disable logging
         save_data                                           # save data
@@ -150,9 +148,8 @@ if __name__ == "__main__":
             if "event_type" not in state_dict:
                 state_dict["event_type"] = None                     
 
-            # Save data and log frequency
+            # Save data
             data_log.save_data_dict(state_dict)
-            data_log.frequency_log(state_dict)
 
     except Exception as e:
         logger.error(f"An error occurred during the experiment loop: {e}", exc_info=True)

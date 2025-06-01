@@ -5,22 +5,20 @@ import random
 
 class Logger:
     """
-    Class for logging experiment data and frequency data.
+    Class for logging experiment data.
     """
 
-    def __init__(self, results_path: str, frequency_path: str, participant_id: int, no_log: bool, save_data: bool=False):
+    def __init__(self, results_path: str, participant_id: int, no_log: bool, save_data: bool=False):
         """
         Initialize the Logger class.
         
         :param results_path: Path to the folder where the experiment data is saved.
-        :param frequency_path: Path to the folder where the frequency data is saved.
         :param participant_id: Participant ID.
         :param no_log: If True, logging is disabled.
         :param save_data: If True, the data is saved to the disk.
         """
         self.save_data = save_data
         self.results_path = results_path
-        self.frequency_path = frequency_path
         self.first_loop = True
 
         self.participant_id = participant_id
@@ -33,8 +31,6 @@ class Logger:
         if not self.no_log or not self.save_data:
             os.makedirs(os.path.join(self.results_path, self.participant_folder), exist_ok=True)
             self.data_exists = False
-            os.makedirs(os.path.join(self.frequency_path), exist_ok=True)
-            self.frequency_exist = False
 
 
         self.data_dict = {}
@@ -134,28 +130,7 @@ class Logger:
 
         # print(self.data_dict)
 
-    def frequency_log(self, state_dict):
-        if self.no_log or not self.save_data:
-            return
-        
-        if not self.frequency_exist:    
-            file_idx = len([filename for filename in os.listdir(os.path.join(self.frequency_path)) if filename.startswith("frequency_data")])
-            file_idx = f'{file_idx:02d}'
-            self.frequency_file = open(os.path.join(self.frequency_path, f"frequency_data_{file_idx}.txt"), "w")
-            self.frequency_exist = True
-
-        if self.first_loop:
-            self.first_loop = False
-            self.previous_timestamp = state_dict["timestamp"]
-            return
-
-        freq = 1 / (state_dict["timestamp"] - self.previous_timestamp)
-
-        self.frequency_file.write(str(freq) + "\n")
-        self.previous_timestamp = state_dict["timestamp"]
-
     def close(self):
         if self.no_log or not self.save_data:
             return
         self.data_file.close()
-        self.frequency_file.close()

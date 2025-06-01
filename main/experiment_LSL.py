@@ -57,7 +57,19 @@ class LSLHandler:
                 'Eduexo_PC'             # source_id
             )
             self.outlet_classifier = StreamOutlet(info_class)
-            logger.info("Stream for events is online...")
+            logger.info("Stream for events to classifier is online...")
+
+            # Create LSL stream for sending events and motor data to classifier
+            info_data = StreamInfo(
+                'MotorData',            # name
+                'Data',                 # type
+                1,                      # channel_count
+                0,                      # nominal rate=0 for irregular streams
+                'string',               # channel format
+                'Eduexo_PC'             # source_id
+            )
+            self.outlet_data = StreamOutlet(info_data)
+            logger.info("Stream for motor data to classifier is online...")
         
         if receive:
             # Resolve LSL stream for receiving EXO data and create an inlet
@@ -122,7 +134,7 @@ class LSLHandler:
                         'Timestamp': self.timestamp
                     }
                     data_json_str = json.dumps(data_sample)
-                    self.outlet_classifier.push_sample([data_json_str], timestamp=self.timestamp)
+                    self.outlet_data.push_sample([data_json_str], timestamp=self.timestamp)
                     # self.logger.info(data_json_str)
 
                     last_data_time = current_time
@@ -166,7 +178,7 @@ class LSLHandler:
         if sample is None:
             self.missed_samples += 1
             # Consider stream offline if we miss N consecutive samples
-            if self.missed_samples >= 5:
+            if self.missed_samples >= 20:
                 if current_time - self.previous_time >= 3:
                     self.logger.error("Stream lost! Trying to reconnect...")
                     state_dict["current_position"] = None
@@ -221,7 +233,7 @@ class LSLHandler:
         # print(instructions_data)
         self.outlet_EXO.push_sample(instructions_data)
 
-        if not experiment_over or not trial_over:
+        if not experiment_over and not trial_over:
             # Map torque profile to its corresponding name
             t_profile_dict = {0: "trapezoid", 1: "triangular", 2: "sinusoide", 3: "rectangular", 4: "smoothed_trapezoid"}
 

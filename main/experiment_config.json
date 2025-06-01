@@ -7,14 +7,12 @@
         "imagination_time_range": [3, 3],
         "intention_time_range": [1, 1],
         "trial_timeout": 3,
+        "number_of_familiarization_trials": 3,
+        "number_of_end_control_trials": 1,
         "conditions": {
-            "1": ["assist", 2, "sinusoidal", 4],
-            "2": ["oppose", 2, "triangular", 1.7],
-            "3": ["assist", 2, "sinusoidal", 1],
-            "4": ["oppose", 2, "triangular", 0.3]
-        },
-        "number_of_familiarization_trials": 0,
-        "end_control_trials": 0
+            "1": ["assist", 2, "sinusoidal", 2],
+            "2": ["oppose", 2, "sinusoidal", 1.7]
+        }
     },
     "exo_parameters":{
         "maximum_arm_position_deg": 180,
@@ -29,8 +27,7 @@
         "full_screen_mode": 0,
         "data_stream_interval": 0.01,
         "save_data": 0,
-        "results_path": "./analysis/experiment_results",  
-        "frequency_path": "./analysis/frequency_data"
+        "results_path": "./analysis/experiment_results"  
     },
     "participant": {
         "age": 22,
