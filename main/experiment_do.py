@@ -25,9 +25,10 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["imagination_time_range"] = experiment_config["experiment"]["imagination_time_range"]
     state_dict["intention_time_range"] = experiment_config["experiment"]["intention_time_range"]
     state_dict["timeout"] = state_dict["TO"] = experiment_config["experiment"]["trial_timeout"]
-    state_dict["trial_conditions"] = experiment_config["experiment"]["conditions"]
     state_dict["familiarization_trials_No"] = experiment_config["experiment"]["number_of_familiarization_trials"]
     state_dict["end_control_trials"] = experiment_config["experiment"]["number_of_end_control_trials"]
+    state_dict["trial_conditions"] = experiment_config["experiment"]["trial_conditions"]
+    state_dict["randomize_trials"] = experiment_config["experiment"]["randomize_trials"]
 
     state_dict["fullscreen"] = experiment_config["interface_data"]["full_screen_mode"]
     state_dict["data_stream_interval"] = experiment_config["interface_data"]["data_stream_interval"]
@@ -62,7 +63,6 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["current_torque"] = 0
     state_dict["demanded_torque"] = 0
 
-    # state_dict["needs_update"] = False # This is not used in the current version, if needed, uncomment the lines in the main loop and signal the update
     state_dict["activate_EXO"] = False
 
     state_dict["background_color"] = "black"
@@ -128,12 +128,6 @@ if __name__ == "__main__":
 
     try:
         while continue_experiment and experiment_over is False:
-            # if state_dict["needs_update"]:
-            #     # Reinitialize state_dict and interface if update is needed
-            #     state_dict = initialize_state_dict(state_dict, experiment_config)
-            #     interface = Interface(inlet=LSL.inlet, state_dict=state_dict, maxP=state_dict["exo_parameters"]["maximum_arm_position_deg"], minP=state_dict["exo_parameters"]["minimum_arm_position_deg"])
-            #     state_machine = StateMachine(LSL)
-
             pygame.event.clear()
             with the_lock:
                 state_dict["timestamp"] = LSL.timestamp_g

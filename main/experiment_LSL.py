@@ -5,11 +5,17 @@ import json
 import logging
 
 class LSLHandler:
+    """
+    Handles all Lab Streaming Layer (LSL) communication for the Eduexo experiment.
+    Responsible for sending setup/instructions/events to the exoskeleton and classifier,
+    and for receiving data and predictions from the exoskeleton and classifier.
+    """
 
     def __init__(self, state_dict: dict, receive: bool=True, send: bool=True, predict: bool=False):
         """
-        Initialize the LSLHandler class.
+        Initialize the LSLHandler class and set up all required LSL streams.
 
+        :param state_dict: Dictionary containing the current state information.
         :param receive: Flag to enable receiving data from LSL stream.
         :param send: Flag to enable sending data to LSL stream.
         :param predict: Flag to enable receiving predictions from LSL stream.
@@ -35,7 +41,7 @@ class LSLHandler:
             self.outlet_SETUP_EXO = StreamOutlet(info_SETUP_EXO)
             logger.info("Stream to Setup EXO is online...")
 
-            # Create LSL stream for sending instructions to EXO
+            # Create LSL stream for sending instructions to EXO (main control)
             info_EXO = StreamInfo(
                 'EXOInstructions',      # name
                 'Instructions',         # type
@@ -47,28 +53,28 @@ class LSLHandler:
             self.outlet_EXO = StreamOutlet(info_EXO)
             logger.info("Stream to EXO is online...")
 
-            # Create LSL stream for sending events and motor data to classifier
-            info_class = StreamInfo(
-                'SyntheticEvents',      # name
+            # Create LSL stream for sending discrete events to classifier
+            info_events = StreamInfo(
+                'ExperimentEvents',     # name
                 'Events',               # type
                 1,                      # channel_count
                 0,                      # nominal rate=0 for irregular streams
                 'string',               # channel format
                 'Eduexo_PC'             # source_id
             )
-            self.outlet_classifier = StreamOutlet(info_class)
+            self.outlet_events = StreamOutlet(info_events)
             logger.info("Stream for events to classifier is online...")
 
-            # Create LSL stream for sending events and motor data to classifier
-            info_data = StreamInfo(
-                'MotorData',            # name
-                'Data',                 # type
+            # Create LSL stream for sending continuous motor data to classifier
+            info_events_continuous = StreamInfo(
+                'ExoEvents',            # name
+                'EventsContinuous',     # type
                 1,                      # channel_count
                 0,                      # nominal rate=0 for irregular streams
                 'string',               # channel format
                 'Eduexo_PC'             # source_id
             )
-            self.outlet_data = StreamOutlet(info_data)
+            self.outlet_events_continuous = StreamOutlet(info_events_continuous)
             logger.info("Stream for motor data to classifier is online...")
         
         if receive:
@@ -93,17 +99,23 @@ class LSLHandler:
             self.predictions_inlet = StreamInlet(streams_p[0])
             logger.info("Receiving data from EXO...")
 
+        # Send initial setup data to EXO
         self.send_setup_data(state_dict["exo_parameters"])
         
     def send_setup_data(self, exo_config: dict):
+        """
+        Send setup data to EXO using LSL.
+        :param exo_config: Dictionary containing the EXO configuration parameters.
+        """
+
         setup_EXO_data = json.dumps(exo_config)
         self.outlet_SETUP_EXO.push_sample([setup_EXO_data])
         self.logger.info("Setup data sent to EXO.")
 
     def stream_events_data(self, stop_event: threading.Event, state_dict: dict, the_lock: threading.Lock):
         """
-        Continuously stream position/torque data (0.1s interval)
-        and send an 'event' every 10s using one LSL Outlet.
+        Continuously stream position/torque data (at a fixed interval)
+        and send an 'event' every time a new event occurs using LSL.
 
         :param stop_event: Event to signal stopping the streaming.
         :param state_dict: Dictionary containing the current state information.
@@ -117,7 +129,7 @@ class LSLHandler:
 
         while not stop_event.is_set():
             try:
-                # 1) Stream position/torque (data) on every loop
+                # 1) Stream position/torque (data) at regular intervals
                 current_time = perf_counter()
                 self.timestamp = local_clock()
                 with the_lock:
@@ -134,12 +146,12 @@ class LSLHandler:
                         'Timestamp': self.timestamp
                     }
                     data_json_str = json.dumps(data_sample)
-                    self.outlet_data.push_sample([data_json_str], timestamp=self.timestamp)
+                    self.outlet_events_continuous.push_sample([data_json_str], timestamp=self.timestamp)
                     # self.logger.info(data_json_str)
 
                     last_data_time = current_time
 
-                # 2) Send an event once every time new event happens
+                # 2) Send an event once every time a new event happens
                 if old_event != state_dict["event_id"] and not state_dict["event_id"] == 99:
                     event_id = state_dict["event_id"]
                     event_type = state_dict["event_type"]
@@ -154,7 +166,7 @@ class LSLHandler:
                         'Event_Timestamp': self.timestamp
                     }
                     event_json_str = json.dumps(event_data)
-                    self.outlet_classifier.push_sample([event_json_str], timestamp=self.timestamp)
+                    self.outlet_events.push_sample([event_json_str], timestamp=self.timestamp)
                     self.logger.info(event_json_str)
                     old_event = state_dict["event_id"]
 
@@ -199,16 +211,21 @@ class LSLHandler:
         Send a TorqueProfile, direction, and Correctness once every time a new event happens.
         
         :param state_dict: Dictionary containing the current state information.
-        :param torque_profile: Torque profile to be sent.
-        :param correctness: Correctness of the execution.
+        :param torque_profile: Torque profile to be sent (int, see t_profile_dict).
+        :param torque_magnitude: Magnitude of the torque to be sent.
+        :param correctness: Correctness of the execution (1=correct, 0=incorrect).
+        :param trial_over: Flag indicating if the trial is over (sends stop signal).
+        :param experiment_over: Flag indicating if the experiment is over (sends termination signal).
         """
+        # Determine direction and correctness based on state and prediction
         if experiment_over:
-            direction = 99
+            direction = 99  # Special code for experiment termination
         elif trial_over:
-            direction =  0
+            direction =  0  # Special code for trial end
             torque_magnitude = 0
         else:
             if state_dict["real_time_prediction"]:
+                # Use prediction to determine correctness and direction
                 if state_dict["trial"] == "UP":
                     direction = 10
                     if state_dict["prediction"] == "UP":
@@ -230,34 +247,43 @@ class LSLHandler:
 
         # Send instructions data to EXO
         instructions_data = [int(torque_profile), int(correctness), int(direction), float(torque_magnitude)]
-        # print(instructions_data)
         self.outlet_EXO.push_sample(instructions_data)
 
+        # Update state_dict with human-readable info if not ending trial/experiment
         if not experiment_over and not trial_over:
-            # Map torque profile to its corresponding name
+            # Map torque profile index to its corresponding name for display/logging
             t_profile_dict = {0: "trapezoid", 1: "triangular", 2: "sinusoide", 3: "rectangular", 4: "smoothed_trapezoid"}
-
             state_dict["torque_profile"] = t_profile_dict[torque_profile]
             state_dict["torque_magnitude"] = float(torque_magnitude)
             state_dict["correctness"] = correctness
 
     def get_predictions(self, stop_event: threading.Event, state_dict: dict = None, verbose: bool=False):
-            if state_dict is None:
-                state_dict = {}
-            previous_time = perf_counter()
-            while not stop_event.is_set():
-                self.predictions_inlet.flush()
-                recieved = False
-                while state_dict["current_state"] in {"IMAGINATION", "INTENTION", "TRIAL_UP", "TRIAL_DOWN"}:
-                    current_time = perf_counter()
-                    if current_time - previous_time >= 1/200:
-                        sample, timestamp = self.predictions_inlet.pull_sample(timeout=0.1)
-                        if sample is not None and len(sample) > 0:
-                            prediction_data = json.loads(sample[0])  # If there's only 1 channel
-                            if not recieved:
-                                if state_dict["activate_EXO"]:
-                                    state_dict["prediction"] = prediction_data["predicted_event_name"]
-                                recieved = True
-                                if verbose:
-                                    self.logger_predictions.info(prediction_data)
-                        previous_time = current_time
+        """
+        Continuously receive predictions from the EXO and update the state dictionary.
+
+        :param stop_event: Event to signal stopping the prediction receiving.
+        :param state_dict: Dictionary containing the current state information.
+        :param verbose: Flag to enable verbose logging of predictions.
+        """
+        if state_dict is None:
+            state_dict = {}
+        previous_time = perf_counter()
+        while not stop_event.is_set():
+            self.predictions_inlet.flush()
+            recieved = False
+            # Only receive predictions during relevant experiment states
+            while state_dict["current_state"] in {"IMAGINATION", "INTENTION", "TRIAL_UP", "TRIAL_DOWN", "MOVING_UP", "MOVING_DOWN"} and not stop_event.is_set():
+                current_time = perf_counter()
+                # Limit prediction polling rate to 200 Hz
+                if current_time - previous_time >= 1/200:
+                    sample, timestamp = self.predictions_inlet.pull_sample(timeout=0.1)
+                    if sample is not None and len(sample) > 0:
+                        prediction_data = json.loads(sample[0])  # Parse JSON string from LSL
+                        if not recieved:
+                            if state_dict["activate_EXO"]:
+                                # Update state_dict with the predicted event name (e.g., "UP" or "DOWN")
+                                state_dict["prediction"] = prediction_data["predicted_event_name"]
+                            recieved = True
+                            if verbose:
+                                self.logger_predictions.info(prediction_data)
+                    previous_time = current_time

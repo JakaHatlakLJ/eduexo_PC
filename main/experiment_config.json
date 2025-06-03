@@ -1,21 +1,24 @@
 {
     "experiment": {
-        "real_time_classifier_prediction": 0,
-        "define_trial_states": ["GO"],
+        "real_time_classifier_prediction": 1,
+        "define_trial_states": ["imagine", "GO"],
         "start_time_range" : [1, 1.5],
         "state_wait_time_range": [1, 1],
         "imagination_time_range": [3, 3],
         "intention_time_range": [1, 1],
         "trial_timeout": 3,
-        "number_of_familiarization_trials": 3,
-        "number_of_end_control_trials": 1,
-        "conditions": {
-            "1": ["assist", 2, "sinusoidal", 2],
-            "2": ["oppose", 2, "sinusoidal", 1.7]
-        }
+        "number_of_familiarization_trials": 2,
+        "number_of_end_control_trials": 2,
+        "trial_conditions": {
+            "1": ["assist", 6, "sinusoidal", 1],
+            "2": ["oppose", 10, "sinusoidal", 3],
+            "3": ["assist", 14, "rectangular", 0.2],
+            "4": ["oppose", 8, "random", 1.7]
+        },
+        "randomize_trials": 1
     },
     "exo_parameters":{
-        "maximum_arm_position_deg": 180,
+        "maximum_arm_position_deg": 165,
         "minimum_arm_position_deg": 55,
         "center_offset_deg": 3,
         "edge_offset_deg": 0,
