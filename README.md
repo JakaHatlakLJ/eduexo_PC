@@ -40,7 +40,9 @@ Eduexo_PC/
 │   ├── experiment_results/             # Results storage
 │   ├── frequency_data/                 # Frequency data
 │   └── jupyter/                        # Jupyter notebooks
-│       └── control_frequency.ipynb     # Control frequency analysis
+│       ├── EXO_frequency_test/         # Control frequency analysis
+│       ├── PC_torque_test              # Torque delivery analysis
+│       └── analysis.ipynb              # ipynb notebook for analysis
 ├── testing_&_debugging/                # Testing scripts
 │   ├── LSL_inlet.py                    # LSL inlet
 │   ├── LSL_outlet.py                   # LSL outlet
@@ -48,8 +50,10 @@ Eduexo_PC/
 │   ├── LSL_predictions_inlet.py        # Test predictions inlet
 │   ├── LSL_read_events_stream.py       # Test events stream
 │   └── LSL_synthetic_predictions.py    # Test real event decoding
+├── README.md                           # Documentation
 ├── requirements.txt                    # Dependencies
-└── README.md                           # Documentation
+├── state_machine_diagram.drawio        # Documentation
+└── state_machine_diagram.pdf           # Documentation
 ```
 
 ## Setting Up the Experiment
@@ -90,27 +94,42 @@ This will start the experiment based on the configurations prepared in the previ
 ```json
 {
     "experiment": {
-        "number_of_trials": 200                        "Total number of assisted trials in the experiment.",
-        "number_of_control_trials": 10                 "Number of control trials (without EXO active).",
-        "state_wait_time_range": [1, 1]                "Range of times in WAIT state.",
-        "imagination_time_range": [5, 5]               "Range of times for IMAGINATION phase.",
-        "intention_time_range": [2, 3]                 "Range of times for INTENTION phase.",
-        "trial_timeout": 3                             "Timeout duration for each trial.",
-        "screen_width": 2000                           "Width of the display screen.",
-        "screen_height": 1050                          "Height of the display screen.",
-        "maximum_arm_position_deg": 165                "Maximum arm position in degrees. (straight arm is 180 deg)",
-        "minimum_arm_position_deg": 55                 "Minimum arm position in degrees.",
-        "data_stream_interval": 0.01                   "Interval for motor parameters streaming.",
-        "synthetic_decoder": 1                         "Flag to choose decoder (1 for synthetic, 0 for real)",
-        "synthetic_decoder_correct_percantage": 0.7    "Correct Execution percentage for synthetic decoder.",
-        "save_data": 1                                 "Flag to save data (1 to save, 0 not to save).",
-        "results_path":"./analysis/experiment_results" "Path to save experiment results.",
-        "frequency_path":"./analysis/frequency_data"   "Path to save frequency data."
+        "real_time_classifier_prediction": 1            "Flag to choose experimet with real time EEG classifier decoding (1) or synthetic events experiment (0)",
+        "define_trial_states": ["wait", "intend"]       "List of states during trial, combination of: 'wait'; 'imagine'; 'intend', or empty list if None",
+        "start_time_range" : [1, 1.5]                   "Range of times in WAIT state.",
+        "state_wait_time_range": [1, 1]                 "Range of times in WAIT state.",
+        "imagination_time_range": [5, 5]                "Range of times for IMAGINATION phase.",
+        "intention_time_range": [2, 3]                  "Range of times for INTENTION phase.",
+        "trial_timeout": 3                              "Timeout duration for each trial.",
+        "number_of_familiarization_trials": 2           "Number of familiarization trials at the begining (without EXO active)",
+        "number_of_end_control_trials": 2               "Number of control trials at the end (without EXO active).",
+        "trial_conditions": {
+            "1": ["assist", 6, "sinusoidal", 1]         "Defines trial conditions as lists: [assistance type, number of trials, torque profile, torque magnitude]",
+            "2": ["oppose", 10, "sinusoidal", 3]        "Assistance type: either 'assist' or 'oppose'",
+            "3": ["assist", 14, "rectangular", 0.2]     "number of trials: (int) split into UP and DOWN trials, if uneven extra UP trial is added",
+            "4": ["oppose", 8, "random", 1.7]           "torque profile: 'sinusoidal', 'rectangular', 'triangular', 'trapezoid', 'smooth_trapezoid' or 'random' for random profile inside condition"
+        }                                               "torque magnitude: maximum torque in Nm during trial, if larger than 'torque_limit', it is set to 'torque_limit'",
+        "randomize_trials": 1                           "Flag to randomize all trials (1) or leave them in condition groups (0)"
+    },
+    "exo_parameters":{
+        "maximum_arm_position_deg": 165                 "Maximum arm position in degrees. (straight arm is 180 deg)",
+        "minimum_arm_position_deg": 55                  "Minimum arm position in degrees.",
+        "center_offset_deg": 3                          "Defines a ± offset from the central arm position; if the arm is within this range, it is considered to be in the middle.",
+        "edge_offset_deg": 5                            "Defines an offset from the maximum/minimum position at which the torque from exo is turned off",
+        "torque_limit": 8                               "Torque limit on the EXO, if surpassed EXO returns ERROR and Torque is turned off",  
+        "incorect_execution_time_control": 0            "Flag for choosing incorrect execution mode, (1) for time dependant pertrubation, (0) for position dependant pertrubation",
+        "incorrect_execution_time_ms": 1500             "Time duration of time dependant pertrubation in ms"
+    },
+    "interface_data": {
+        "full_screen_mode": 0                           "Flag for choosing full screen mode",
+        "data_stream_interval": 0.01                    "Interval for motor parameters streaming.", 
+        "save_data": 1                                  "Flag to save data (1 to save, 0 not to save).",
+        "results_path":"./analysis/experiment_results"  "Path to save experiment results.",
     },
     "participant": {
-        "age": 22                                      "Age of the participant.",
-        "id": 1                                        "ID of the participant.",
-        "name":"Jaka"                                  "Name of the participant."
+        "age": 22                                       "Age of the participant.",
+        "id": 1                                         "ID of the participant.",
+        "name":"Jaka"                                   "Name of the participant."
     }
 }
 ```

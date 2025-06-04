@@ -1,7 +1,7 @@
 {
     "experiment": {
-        "real_time_classifier_prediction": 1,
-        "define_trial_states": ["imagine", "GO"],
+        "real_time_classifier_prediction": 0,
+        "define_trial_states": [],
         "start_time_range" : [1, 1.5],
         "state_wait_time_range": [1, 1],
         "imagination_time_range": [3, 3],
@@ -10,10 +10,10 @@
         "number_of_familiarization_trials": 2,
         "number_of_end_control_trials": 2,
         "trial_conditions": {
-            "1": ["assist", 6, "sinusoidal", 1],
-            "2": ["oppose", 10, "sinusoidal", 3],
-            "3": ["assist", 14, "rectangular", 0.2],
-            "4": ["oppose", 8, "random", 1.7]
+            "1": ["oppose", 6, "sinusoidal", 1],
+            "2": ["assist", 6, "sinusoidal", 2],
+            "3": ["oppose", 6, "sinusoidal", 3],
+            "4": ["assist", 6, "sinusoidal", 1.5]
         },
         "randomize_trials": 1
     },
@@ -21,7 +21,7 @@
         "maximum_arm_position_deg": 165,
         "minimum_arm_position_deg": 55,
         "center_offset_deg": 3,
-        "edge_offset_deg": 0,
+        "edge_offset_deg": 5,
         "torque_limit": 8,
         "incorect_execution_time_control": 0,
         "incorrect_execution_time_ms": 1500

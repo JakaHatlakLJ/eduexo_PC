@@ -70,7 +70,7 @@ class LSLHandler:
                 'ExoEvents',            # name
                 'EventsContinuous',     # type
                 1,                      # channel_count
-                0,                      # nominal rate=0 for irregular streams
+                100,                    # nominal rate=0 for irregular streams
                 'string',               # channel format
                 'Eduexo_PC'             # source_id
             )
@@ -190,7 +190,7 @@ class LSLHandler:
         if sample is None:
             self.missed_samples += 1
             # Consider stream offline if we miss N consecutive samples
-            if self.missed_samples >= 20:
+            if self.missed_samples >= 50:
                 if current_time - self.previous_time >= 3:
                     self.logger.error("Stream lost! Trying to reconnect...")
                     state_dict["current_position"] = None
