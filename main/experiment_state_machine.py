@@ -76,7 +76,7 @@ class StateMachine:
         # Construct reverse state lookup
         all_variables = vars(StateMachine)
         self.reverse_state_lookup = {all_variables[name]: name for name in all_variables if isinstance(all_variables[name], int) and name.isupper()}
-        self.profiles_dict = {"trapezoid" : 0, "triangular" : 1, "sinusoidal" : 2, "rectangular" : 3, "smooth trapezoid" : 4}
+        self.profiles_dict = {"trapezoid" : 0, "triangular" : 1, "sinusoidal" : 2, "rectangular" : 3, "smooth_trapezoid" : 4}
 
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger("state_machine")

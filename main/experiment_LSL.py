@@ -60,8 +60,17 @@ class LSLHandler:
                 1,                      # channel_count
                 0,                      # nominal rate=0 for irregular streams
                 'string',               # channel format
-                'Eduexo_PC'             # source_id
+                'Eduexo_PC1'            # source_id
             )
+
+            # Add channel metadata
+            desc_events = info_events.desc()
+            channels_events = desc_events.append_child("channels")
+            channel = channels_events.append_child("channel")
+            channel.append_child_value("label", "event_marker")
+            channel.append_child_value("type", "trigger")
+            channel.append_child_value("unit", "n/a")
+
             self.outlet_events = StreamOutlet(info_events)
             logger.info("Stream for events to classifier is online...")
 
@@ -69,11 +78,34 @@ class LSLHandler:
             info_events_continuous = StreamInfo(
                 'ExoEvents',            # name
                 'EventsContinuous',     # type
-                1,                      # channel_count
+                3,                      # channel_count
                 100,                    # nominal rate=0 for irregular streams
-                'string',               # channel format
-                'Eduexo_PC'             # source_id
+                'float32',              # channel format
+                'Eduexo_PC2'            # source_id
             )
+
+            # Add channel metadata
+            desc_continuous = info_events_continuous.desc()
+            channels_cont = desc_continuous.append_child("channels")
+
+            # Channel 1: Position
+            ch1 = channels_cont.append_child("channel")
+            ch1.append_child_value("label", "position")
+            ch1.append_child_value("type", "angle")
+            ch1.append_child_value("unit", "deg")
+
+            # Channel 2: Velocity
+            ch2 = channels_cont.append_child("channel")
+            ch2.append_child_value("label", "velocity")
+            ch2.append_child_value("type", "angular_velocity")
+            ch2.append_child_value("unit", "deg/s")
+
+            # Channel 3: Torque
+            ch3 = channels_cont.append_child("channel")
+            ch3.append_child_value("label", "torque")
+            ch3.append_child_value("type", "force")
+            ch3.append_child_value("unit", "Nm")
+
             self.outlet_events_continuous = StreamOutlet(info_events_continuous)
             logger.info("Stream for motor data to classifier is online...")
         
@@ -138,16 +170,9 @@ class LSLHandler:
                     position = state_dict["current_position"]   # current position
                     velocity = state_dict["current_velocity"]   # current velocity
                     torque = state_dict["current_torque"]       # current torque
-                    data_sample = {
-                        'Sample_Type': 'data',
-                        'Position': position,
-                        'Velocity': velocity,
-                        'Torque': torque,
-                        'Timestamp': self.timestamp
-                    }
-                    data_json_str = json.dumps(data_sample)
-                    self.outlet_events_continuous.push_sample([data_json_str], timestamp=self.timestamp)
-                    # self.logger.info(data_json_str)
+                    sample = [position, velocity, torque]
+                    self.outlet_events_continuous.push_sample(sample, timestamp=self.timestamp)
+                    # self.logger.info(sample)
 
                     last_data_time = current_time
 

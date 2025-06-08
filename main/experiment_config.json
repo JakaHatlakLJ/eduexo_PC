@@ -7,13 +7,14 @@
         "imagination_time_range": [3, 3],
         "intention_time_range": [1, 1],
         "trial_timeout": 3,
-        "number_of_familiarization_trials": 2,
-        "number_of_end_control_trials": 2,
+        "number_of_familiarization_trials": 20,
+        "number_of_end_control_trials": 20,
         "trial_conditions": {
-            "1": ["oppose", 6, "sinusoidal", 1],
-            "2": ["assist", 6, "sinusoidal", 2],
-            "3": ["oppose", 6, "sinusoidal", 3],
-            "4": ["assist", 6, "sinusoidal", 1.5]
+            "1": ["oppose", 50, "smooth_trapezoid", 1],
+            "2": ["oppose", 50, "smooth_trapezoid", 2],
+            "3": ["assist", 50, "smooth_trapezoid", 1],
+            "4": ["assist", 50, "smooth_trapezoid", 2],
+            "5": ["assist", 50, "smooth_trapezoid", 0]
         },
         "randomize_trials": 1
     },
@@ -23,7 +24,7 @@
         "center_offset_deg": 3,
         "edge_offset_deg": 5,
         "torque_limit": 8,
-        "incorect_execution_time_control": 0,
+        "incorect_execution_time_control": 1,
         "incorrect_execution_time_ms": 1500
     },
     "interface_data": {
