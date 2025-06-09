@@ -160,44 +160,44 @@ class LSLHandler:
         self.timestamp_g = local_clock()
 
         while not stop_event.is_set():
-            try:
-                # 1) Stream position/torque (data) at regular intervals
-                current_time = perf_counter()
-                self.timestamp = local_clock()
-                with the_lock:
-                    self.timestamp_g = self.timestamp
-                if current_time - last_data_time >= data_interval:
-                    position = state_dict["current_position"]   # current position
-                    velocity = state_dict["current_velocity"]   # current velocity
-                    torque = state_dict["current_torque"]       # current torque
-                    sample = [position, velocity, torque]
-                    self.outlet_events_continuous.push_sample(sample, timestamp=self.timestamp)
-                    # self.logger.info(sample)
+            if state_dict["stream_online"]:
+                try:
+                    # 1) Stream position/torque (data) at regular intervals
+                    current_time = perf_counter()
+                    self.timestamp = local_clock()
+                    with the_lock:
+                        self.timestamp_g = self.timestamp
+                    if current_time - last_data_time >= data_interval:
+                        position = state_dict["current_position"]   # current position
+                        velocity = state_dict["current_velocity"]   # current velocity
+                        torque = state_dict["current_torque"]       # current torque
+                        sample = [position, velocity, torque]
+                        self.outlet_events_continuous.push_sample(sample, timestamp=self.timestamp)
+                        # self.logger.info(sample)
 
-                    last_data_time = current_time
+                        last_data_time = current_time
 
-                # 2) Send an event once every time a new event happens
-                if old_event != state_dict["event_id"] and not state_dict["event_id"] == 99:
-                    event_id = state_dict["event_id"]
-                    event_type = state_dict["event_type"]
-                    torque_profile = state_dict["torque_profile"]
-                    torque_magnitude = state_dict["torque_magnitude"]
-                    event_data = {
-                        'Sample_Type': 'event',
-                        'Event_ID': event_id,
-                        'Event_Type': event_type,
-                        'TorqueProfile': torque_profile,
-                        'TorqueMagnitude': torque_magnitude,
-                        'Event_Timestamp': self.timestamp
-                    }
-                    event_json_str = json.dumps(event_data)
-                    self.outlet_events.push_sample([event_json_str], timestamp=self.timestamp)
-                    self.logger.info(event_json_str)
-                    old_event = state_dict["event_id"]
+                    # 2) Send an event once every time a new event happens
+                    if old_event != state_dict["event_id"] and not state_dict["event_id"] == 99:
+                        event_id = state_dict["event_id"]
+                        event_type = state_dict["event_type"]
+                        torque_profile = state_dict["torque_profile"]
+                        torque_magnitude = state_dict["torque_magnitude"]
+                        event_data = {
+                            'Sample_Type': 'event',
+                            'Event_ID': event_id,
+                            'Event_Type': event_type,
+                            'TorqueProfile': torque_profile,
+                            'TorqueMagnitude': torque_magnitude,
+                            'Event_Timestamp': self.timestamp
+                        }
+                        event_json_str = json.dumps(event_data)
+                        self.outlet_events.push_sample([event_json_str], timestamp=self.timestamp)
+                        self.logger.info(event_json_str)
+                        old_event = state_dict["event_id"]
 
-            except Exception as e:
-                self.logger.error(f"Error in streaming Events data: {e}")
-                break
+                except Exception as e:
+                    self.logger.error(f"Error in streaming Events data: {e}")
 
         self.logger.info("Stopped streaming Events data.")
 
@@ -230,6 +230,7 @@ class LSLHandler:
             state_dict["current_torque"] = round(sample[2], 5)
             state_dict["exo_execution"] = sample[3]
             state_dict["demanded_torque"] = sample[4]
+            state_dict["current_force"] = round(sample[5], 5)
 
     def EXO_stream_out(self, state_dict: dict = None, torque_profile: int = 1, torque_magnitude: float = 1, correctness: int = 1, trial_over = False, experiment_over = False):
         """

@@ -586,7 +586,7 @@ class StateMachine:
 
             Args:
                 condition_id: Identifier for the condition.
-                assistance: "assist" or "oppose" (determines execution correctness).
+                assistance: "assist" or "resist" (determines execution correctness).
                 condition_trial_No: Number of trials for this condition.
                 torque_profile: Profile name or "random".
                 torque_magnitude: Torque value for all trials.
@@ -603,10 +603,10 @@ class StateMachine:
             if condition_trial_No % 2 != 0:
                 events = np.append(events, int(1))  # Extra UP
 
-            # Set execution correctness: 1 for assist, 0 for oppose
+            # Set execution correctness: 1 for assist, 0 for resist
             if assistance == "assist":
                 executions = np.ones(condition_trial_No)
-            elif assistance == "oppose":
+            elif assistance == "resist":
                 executions = np.zeros(condition_trial_No)
             else:
                 self.logger.error(f"Invalid assistance type: {assistance} in condition {condition_id}.")

@@ -62,6 +62,7 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["current_velocity"] = 0
     state_dict["current_torque"] = 0
     state_dict["demanded_torque"] = 0
+    state_dict["current_force"] = 0
 
     state_dict["activate_EXO"] = False
 
@@ -88,9 +89,10 @@ if __name__ == "__main__":
     save_data = True if experiment_config["interface_data"]["save_data"] == 1 else False
     data_log = Logger(
         experiment_config["interface_data"]["results_path"],    # results path
-        experiment_config["participant"]["id"],             # participant ID
-        args.no_log,                                        # disable logging
-        save_data                                           # save data
+        experiment_config["participant"]["name"],               # participant name
+        experiment_config["participant"]["id"],                 # participant ID
+        args.no_log,                                            # disable logging
+        save_data                                               # save data
     )
     data_log.save_experiment_config(experiment_config)
 

@@ -7,14 +7,11 @@
         "imagination_time_range": [3, 3],
         "intention_time_range": [1, 1],
         "trial_timeout": 3,
-        "number_of_familiarization_trials": 20,
-        "number_of_end_control_trials": 20,
+        "number_of_familiarization_trials": 0,
+        "number_of_end_control_trials": 0,
         "trial_conditions": {
-            "1": ["oppose", 50, "smooth_trapezoid", 1],
-            "2": ["oppose", 50, "smooth_trapezoid", 2],
-            "3": ["assist", 50, "smooth_trapezoid", 1],
-            "4": ["assist", 50, "smooth_trapezoid", 2],
-            "5": ["assist", 50, "smooth_trapezoid", 0]
+            "1": ["resist", 4, "random", 2],
+            "2": ["assist", 4, "random", 3]
         },
         "randomize_trials": 1
     },
@@ -24,13 +21,13 @@
         "center_offset_deg": 3,
         "edge_offset_deg": 5,
         "torque_limit": 8,
-        "incorect_execution_time_control": 1,
+        "incorect_execution_time_control": 0,
         "incorrect_execution_time_ms": 1500
     },
     "interface_data": {
         "full_screen_mode": 0,
         "data_stream_interval": 0.01,
-        "save_data": 0,
+        "save_data": 1,
         "results_path": "./analysis/experiment_results"  
     },
     "participant": {

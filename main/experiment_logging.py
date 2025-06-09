@@ -8,7 +8,7 @@ class Logger:
     Class for logging experiment data.
     """
 
-    def __init__(self, results_path: str, participant_id: int, no_log: bool, save_data: bool=False):
+    def __init__(self, results_path: str, participant_name: str, participant_id: int, no_log: bool, save_data: bool=False):
         """
         Initialize the Logger class.
         
@@ -21,10 +21,12 @@ class Logger:
         self.results_path = results_path
         self.first_loop = True
 
+        self.participant_name = participant_name
         self.participant_id = participant_id
+        assert isinstance(self.participant_name, str), "Participant name has to be a string!"
         assert isinstance(self.participant_id, int), "Participant ID has to be an integer!"
 
-        self.participant_folder = f"participant_{self.participant_id:03d}"
+        self.participant_folder = f"participant_{self.participant_name}_{self.participant_id:03d}"
         self.no_log = no_log
         self.trajectory_data_exists = None
 
@@ -38,6 +40,7 @@ class Logger:
         self.data_dict["demanded_torque"] = 0
         self.data_dict["current_position"] = 0
         self.data_dict["current_velocity"] = 0
+        self.data_dict["current_force"] = 0
         self.data_dict["event_id"] = 0
         self.data_dict["event_type"] = 0
         self.data_dict["timestamp"] = 0
@@ -121,6 +124,7 @@ class Logger:
         self.data_dict["demanded_torque"] = state_dict["demanded_torque"]
         self.data_dict["current_position"] = state_dict["current_position"]
         self.data_dict["current_velocity"] = state_dict["current_velocity"]
+        self.data_dict["current_force"] = state_dict["current_force"]
         self.data_dict["event_id"] = state_dict["event_id"]
         self.data_dict["event_type"] = state_dict["event_type"]
         self.data_dict["timestamp"] = state_dict["timestamp"]

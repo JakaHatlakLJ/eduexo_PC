@@ -105,9 +105,9 @@ This will start the experiment based on the configurations prepared in the previ
         "number_of_end_control_trials": 2               "Number of control trials at the end (without EXO active).",
         "trial_conditions": {
             "1": ["assist", 6, "sinusoidal", 1]         "Defines trial conditions as lists: [assistance type, number of trials, torque profile, torque magnitude]",
-            "2": ["oppose", 10, "sinusoidal", 3]        "Assistance type: either 'assist' or 'oppose'",
+            "2": ["resist", 10, "sinusoidal", 3]        "Assistance type: either 'assist' or 'resist'",
             "3": ["assist", 14, "rectangular", 0.2]     "number of trials: (int) split into UP and DOWN trials, if uneven extra UP trial is added",
-            "4": ["oppose", 8, "random", 1.7]           "torque profile: 'sinusoidal', 'rectangular', 'triangular', 'trapezoid', 'smooth_trapezoid' or 'random' for random profile inside condition"
+            "4": ["resist", 8, "random", 1.7]           "torque profile: 'sinusoidal', 'rectangular', 'triangular', 'trapezoid', 'smooth_trapezoid' or 'random' for random profile inside condition"
         }                                               "torque magnitude: maximum torque in Nm during trial, if larger than 'torque_limit', it is set to 'torque_limit'",
         "randomize_trials": 1                           "Flag to randomize all trials (1) or leave them in condition groups (0)"
     },
