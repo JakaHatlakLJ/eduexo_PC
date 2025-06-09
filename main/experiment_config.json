@@ -10,12 +10,13 @@
         "number_of_familiarization_trials": 0,
         "number_of_end_control_trials": 0,
         "trial_conditions": {
-            "1": ["resist", 4, "random", 2],
-            "2": ["assist", 4, "random", 3]
+            "1": ["resist", 4, "random", 1],
+            "2": ["resist", 4, "random", 3]
         },
         "randomize_trials": 1
     },
     "exo_parameters":{
+        "forearm_attachment_leverage_mm": 180,
         "maximum_arm_position_deg": 165,
         "minimum_arm_position_deg": 55,
         "center_offset_deg": 3,

@@ -124,7 +124,13 @@ class Logger:
         self.data_dict["demanded_torque"] = state_dict["demanded_torque"]
         self.data_dict["current_position"] = state_dict["current_position"]
         self.data_dict["current_velocity"] = state_dict["current_velocity"]
-        self.data_dict["current_force"] = state_dict["current_force"]
+        # Maintain a buffer of the 5 most recent current_force values
+        if not hasattr(self, "_current_force_buffer"):
+            self._current_force_buffer = []
+        self._current_force_buffer.append(state_dict["current_force"])
+        if len(self._current_force_buffer) > 5:
+            self._current_force_buffer.pop(0)
+        self.data_dict["current_force"] = np.mean(self._current_force_buffer)
         self.data_dict["event_id"] = state_dict["event_id"]
         self.data_dict["event_type"] = state_dict["event_type"]
         self.data_dict["timestamp"] = state_dict["timestamp"]
