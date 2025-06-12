@@ -229,8 +229,9 @@ class LSLHandler:
             state_dict["current_velocity"] = round(sample[1], 5)
             state_dict["current_torque"] = round(sample[2], 5)
             state_dict["exo_execution"] = sample[3]
-            state_dict["demanded_torque"] = sample[4]
-            state_dict["current_force"] = round(sample[5], 5)
+            state_dict["desired_torque"] = round(sample[4], 5)
+            state_dict["demanded_torque"] = round(sample[5], 5)
+            state_dict["measured_torque"] = round(sample[6], 5)
 
     def EXO_stream_out(self, state_dict: dict = None, torque_profile: int = 1, torque_magnitude: float = 1, correctness: int = 1, trial_over = False, experiment_over = False):
         """

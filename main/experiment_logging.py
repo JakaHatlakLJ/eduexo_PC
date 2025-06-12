@@ -36,11 +36,12 @@ class Logger:
 
 
         self.data_dict = {}
-        self.data_dict["current_torque"] = 0
-        self.data_dict["demanded_torque"] = 0
         self.data_dict["current_position"] = 0
         self.data_dict["current_velocity"] = 0
-        self.data_dict["current_force"] = 0
+        self.data_dict["desired_torque"] = 0
+        self.data_dict["demanded_torque"] = 0
+        self.data_dict["current_torque"] = 0
+        self.data_dict["measured_torque"] = 0
         self.data_dict["event_id"] = 0
         self.data_dict["event_type"] = 0
         self.data_dict["timestamp"] = 0
@@ -52,8 +53,7 @@ class Logger:
         """
         self.column_names = []
         self.original_state_dict_keys = set(self.data_dict.keys())
-        sorted_keys = sorted(self.data_dict.keys())
-        for key in sorted_keys:
+        for key in self.data_dict.keys():
             if isinstance(self.data_dict[key], int) or isinstance(self.data_dict[key], float) or isinstance(self.data_dict[key], str) or self.data_dict[key] is None:
                 self.column_names.append(key)
             elif isinstance(self.data_dict[key], list) or isinstance(self.data_dict[key], np.ndarray) or isinstance(self.data_dict[key], tuple):
@@ -121,16 +121,11 @@ class Logger:
             self.data_dict = {key:0 for key in self.data_dict}
         
         self.data_dict["current_torque"] = state_dict["current_torque"]
+        self.data_dict["desired_torque"] = state_dict["desired_torque"]
         self.data_dict["demanded_torque"] = state_dict["demanded_torque"]
+        self.data_dict["measured_torque"] = state_dict["measured_torque"]
         self.data_dict["current_position"] = state_dict["current_position"]
         self.data_dict["current_velocity"] = state_dict["current_velocity"]
-        # Maintain a buffer of the 5 most recent current_force values
-        if not hasattr(self, "_current_force_buffer"):
-            self._current_force_buffer = []
-        self._current_force_buffer.append(state_dict["current_force"])
-        if len(self._current_force_buffer) > 5:
-            self._current_force_buffer.pop(0)
-        self.data_dict["current_force"] = np.mean(self._current_force_buffer)
         self.data_dict["event_id"] = state_dict["event_id"]
         self.data_dict["event_type"] = state_dict["event_type"]
         self.data_dict["timestamp"] = state_dict["timestamp"]

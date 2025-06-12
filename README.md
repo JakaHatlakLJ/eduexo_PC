@@ -112,13 +112,21 @@ This will start the experiment based on the configurations prepared in the previ
         "randomize_trials": 1                           "Flag to randomize all trials (1) or leave them in condition groups (0)"
     },
     "exo_parameters":{
+        "forearm_attachment_leverage_mm": 180           "Distance from load cell to the rotation axis",
         "maximum_arm_position_deg": 165                 "Maximum arm position in degrees. (straight arm is 180 deg)",
         "minimum_arm_position_deg": 55                  "Minimum arm position in degrees.",
         "center_offset_deg": 3                          "Defines a ± offset from the central arm position; if the arm is within this range, it is considered to be in the middle.",
         "edge_offset_deg": 5                            "Defines an offset from the maximum/minimum position at which the torque from exo is turned off",
         "torque_limit": 8                               "Torque limit on the EXO, if surpassed EXO returns ERROR and Torque is turned off",  
         "incorect_execution_time_control": 0            "Flag for choosing incorrect execution mode, (1) for time dependant pertrubation, (0) for position dependant pertrubation",
-        "incorrect_execution_time_ms": 1500             "Time duration of time dependant pertrubation in ms"
+        "incorrect_execution_time_ms": 1500             "Time duration of time dependant pertrubation in ms",
+        "PID_control": 0                                "Flag for enabling PID control during resist executions",
+        "PID_parameters": {
+            "FKp": 0.1                                  "Proportional Gain of force measurement", 
+            "FKd": 0.035                                "Derivative Gain of force measurement",
+            "VKp": 0.015                                "Proportional gain of velocity measurement"
+        }
+
     },
     "interface_data": {
         "full_screen_mode": 0                           "Flag for choosing full screen mode",
@@ -132,6 +140,56 @@ This will start the experiment based on the configurations prepared in the previ
         "name":"Jaka"                                   "Name of the participant."
     }
 }
+
+
+{
+    "experiment": {
+        "real_time_classifier_prediction": 0,
+        "define_trial_states": [],
+        "start_time_range" : [1, 1.5],
+        "state_wait_time_range": [1, 1],
+        "imagination_time_range": [3, 3],
+        "intention_time_range": [1, 1],
+        "trial_timeout": 10,
+        "number_of_familiarization_trials": 0,
+        "number_of_end_control_trials": 0,
+        "trial_conditions": {
+            "1": ["resist", 2, "sinusoidal", 2],
+            "2": ["resist", 2, "trapezoid", 3],
+            "3": ["assist", 2, "sinusoidal", 2],
+            "4": ["assist", 2, "trapezoid", 3]
+        },
+        "randomize_trials": 1
+    },
+    "exo_parameters":{
+        "forearm_attachment_leverage_mm": 180,
+        "maximum_arm_position_deg": 165,
+        "minimum_arm_position_deg": 55,
+        "center_offset_deg": 3,
+        "edge_offset_deg": 5,
+        "torque_limit": 8,
+        "incorect_execution_time_control": 0,
+        "incorrect_execution_time_ms": 1500,
+        "PID_control": 0,
+        "PID_parameters": {
+            "FKp": 0.1,
+            "FKd": 0.035,
+            "VKp": 0.015
+        }
+    },
+    "interface_data": {
+        "full_screen_mode": 0,
+        "data_stream_interval": 0.01,
+        "save_data": 1,
+        "results_path": "./analysis/experiment_results"  
+    },
+    "participant": {
+        "age": 22,
+        "id": 1,
+        "name": "Jaka"
+    }
+}
+
 ```
 ### Additional Scripts:
 

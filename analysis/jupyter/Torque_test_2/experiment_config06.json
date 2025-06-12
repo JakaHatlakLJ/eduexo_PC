@@ -1,0 +1,67 @@
+{
+    "exo_parameters": {
+        "PID_control": 1,
+        "PID_parameters": {
+            "FKd": 0.05,
+            "FKp": 0.2,
+            "VKp": 0.05
+        },
+        "center_offset_deg": 3,
+        "edge_offset_deg": 5,
+        "forearm_attachment_leverage_mm": 180,
+        "incorect_execution_time_control": 0,
+        "incorrect_execution_time_ms": 1500,
+        "maximum_arm_position_deg": 165,
+        "minimum_arm_position_deg": 55,
+        "torque_limit": 8
+    },
+    "experiment": {
+        "define_trial_states": [],
+        "imagination_time_range": [
+            3,
+            3
+        ],
+        "intention_time_range": [
+            1,
+            1
+        ],
+        "number_of_end_control_trials": 0,
+        "number_of_familiarization_trials": 0,
+        "randomize_trials": 1,
+        "real_time_classifier_prediction": 0,
+        "start_time_range": [
+            1,
+            1.5
+        ],
+        "state_wait_time_range": [
+            1,
+            1
+        ],
+        "trial_conditions": {
+            "3": [
+                "resist",
+                2,
+                "rectangular",
+                4
+            ],
+            "4": [
+                "resist",
+                2,
+                "trapezoid",
+                4
+            ]
+        },
+        "trial_timeout": 3
+    },
+    "interface_data": {
+        "data_stream_interval": 0.01,
+        "full_screen_mode": 0,
+        "results_path": "./analysis/experiment_results",
+        "save_data": 1
+    },
+    "participant": {
+        "age": 22,
+        "id": 1,
+        "name": "Jaka"
+    }
+}

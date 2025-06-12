@@ -62,7 +62,8 @@ def initialize_state_dict(state_dict, experiment_config):
     state_dict["current_velocity"] = 0
     state_dict["current_torque"] = 0
     state_dict["demanded_torque"] = 0
-    state_dict["current_force"] = 0
+    state_dict["desired_torque"] = 0
+    state_dict["measured_torque"] = 0
 
     state_dict["activate_EXO"] = False
 

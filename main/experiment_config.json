@@ -6,12 +6,14 @@
         "state_wait_time_range": [1, 1],
         "imagination_time_range": [3, 3],
         "intention_time_range": [1, 1],
-        "trial_timeout": 3,
+        "trial_timeout": 10,
         "number_of_familiarization_trials": 0,
         "number_of_end_control_trials": 0,
         "trial_conditions": {
-            "1": ["resist", 4, "trapezoid", 1],
-            "2": ["resist", 4, "trapezoid", 3]
+            "1": ["resist", 2, "sinusoidal", 2],
+            "2": ["resist", 2, "trapezoid", 3],
+            "3": ["assist", 2, "sinusoidal", 2],
+            "4": ["assist", 2, "trapezoid", 3]
         },
         "randomize_trials": 1
     },
@@ -26,9 +28,9 @@
         "incorrect_execution_time_ms": 1500,
         "PID_control": 0,
         "PID_parameters": {
-            "FKp": 0.5,
-            "FKd": 0.05,
-            "VKp": 0.05
+            "FKp": 0.1,
+            "FKd": 0.035,
+            "VKp": 0.015
         }
     },
     "interface_data": {
